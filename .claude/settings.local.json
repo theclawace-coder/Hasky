@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm run build)",
+      "Bash(npx supabase:*)",
+      "Bash(supabase --version:*)",
+      "Bash(curl:*)",
+      "Bash(psql --version:*)",
+      "Bash(node --version:*)",
+      "Bash(node:*)",
+      "Bash(SUPABASE_ACCESS_TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzcW13c291cWdmcnh3Z25vYmVxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTI2MjAxMiwiZXhwIjoyMDg2ODM4MDEyfQ.e_lPpORoEA0QRxm7jasPaqKkF_-507OBJJlNikuNEQg\" npx supabase db execute:*)",
+      "Bash(node.exe:*)",
+      "Bash(npm.cmd -v:*)",
+      "Bash(npm.cmd install postgres --save)",
+      "Bash(dir node_modules:*)",
+      "Bash(dir:*)",
+      "Bash(npm.cmd install --save-dev postgres)",
+      "Bash(npm.cmd install postgres@3)",
+      "Bash(npm.cmd install postgres@3 --legacy-peer-deps)",
+      "Bash(del:*)",
+      "Bash(Remove-Item \"c:/Users/acebo/OneDrive/Documents/hirehub/run_migration.mjs\" -Force)",
+      "Bash(Remove-Item \"c:/Users/acebo/OneDrive/Documents/hirehub/migration_expenses.sql\" -Force)"
+    ]
+  }
+}
