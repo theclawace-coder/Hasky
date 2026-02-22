@@ -1,8 +1,9 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { LandingLayout, ctaBtnClass, ctaBtnStyle } from '../../components/landing/LandingLayout';
+import { LandingLayout } from '../../components/landing/LandingLayout';
+import { ctaBtnClass, ctaBtnStyle } from '../../components/landing/ctaStyles';
 
-// ── Step visuals (updated to glass style) ─────────────────────────────────
+// â”€â”€ Step visuals (updated to glass style) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function AppChrome({ children }: { children: React.ReactNode }) {
   return (
@@ -81,8 +82,8 @@ function BookingWizardVisual() {
       <div style={{ background: glassBg, padding: '16px' }}>
         <div className="rounded-2xl p-4" style={glassCard}>
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-xs font-bold text-slate-700">New Job — Step 2 of 4</p>
-            <p className="text-[10px] text-slate-400">Machine selected ✓</p>
+            <p className="text-xs font-bold text-slate-700">New Job â€” Step 2 of 4</p>
+            <p className="text-[10px] text-slate-400">Machine selected âœ“</p>
           </div>
           <div className="mb-3 flex gap-1">
             {['Machine', 'Customer', 'Dates', 'Details'].map((s, i) => (
@@ -102,7 +103,7 @@ function BookingWizardVisual() {
           <div className="space-y-2">
             {[
               { label: 'Customer', val: 'Smith Constructions' },
-              { label: 'Contact', val: 'Jake Smith · 0412 345 678' },
+              { label: 'Contact', val: 'Jake Smith Â· 0412 345 678' },
               { label: 'Job Address', val: '42 George St, Sydney NSW' },
             ].map((f) => (
               <div key={f.label} className="flex items-center justify-between border-b py-1" style={{ borderColor: 'rgba(200,180,240,0.20)' }}>
@@ -116,13 +117,13 @@ function BookingWizardVisual() {
               className="rounded-xl px-3 py-1.5 text-[10px] font-medium text-slate-500"
               style={{ background: 'rgba(248,250,252,0.90)', border: '1px solid rgba(200,180,240,0.25)' }}
             >
-              ← Back
+              â† Back
             </div>
             <div
               className="rounded-xl px-3 py-1.5 text-[10px] font-bold text-white"
               style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)' }}
             >
-              Next →
+              Next â†’
             </div>
           </div>
         </div>
@@ -149,7 +150,7 @@ function InvoiceVisual() {
             </span>
           </div>
           <div className="mb-3 space-y-1 border-y py-2" style={{ borderColor: 'rgba(200,180,240,0.20)' }}>
-            {['20T Excavator — 3 days · $3,600', 'Delivery & Pickup · $480', 'Operator · $1,350', 'GST · $543'].map((l) => (
+            {['20T Excavator â€” 3 days Â· $3,600', 'Delivery & Pickup Â· $480', 'Operator Â· $1,350', 'GST Â· $543'].map((l) => (
               <div key={l} className="text-[9px] text-slate-500">{l}</div>
             ))}
           </div>
@@ -164,7 +165,7 @@ function InvoiceVisual() {
               border: '1px solid rgba(139,92,246,0.20)',
             }}
           >
-            <span className="text-[10px] font-bold text-violet-700">💳 Pay by card</span>
+            <span className="text-[10px] font-bold text-violet-700">ðŸ’³ Pay by card</span>
             <span className="text-[9px] text-slate-400">Powered by Stripe</span>
           </div>
         </div>
@@ -177,7 +178,7 @@ function ReportsVisual() {
   return (
     <AppChrome>
       <div style={{ background: glassBg, padding: '16px' }}>
-        <p className="mb-2 text-xs font-bold text-slate-800">Reports — February 2025</p>
+        <p className="mb-2 text-xs font-bold text-slate-800">Reports â€” February 2025</p>
         <div className="mb-2 grid grid-cols-3 gap-2">
           {[
             { label: 'Revenue', val: '$75,100', bg: 'rgba(239,246,255,0.90)', border: '#3b82f6', t: '#1d4ed8' },
@@ -214,7 +215,7 @@ function ReportsVisual() {
   );
 }
 
-// ── Steps data ─────────────────────────────────────────────────────────────
+// â”€â”€ Steps data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const steps = [
   {
@@ -223,7 +224,7 @@ const steps = [
     gradientEnd: '#d97706',
     accentColor: '#f59e0b',
     title: 'Add your fleet',
-    desc: "Enter each machine you hire out — name, type, daily rate, and any details. Takes about a minute per machine. You can add them all at once or one at a time as you go.",
+    desc: "Enter each machine you hire out â€” name, type, daily rate, and any details. Takes about a minute per machine. You can add them all at once or one at a time as you go.",
     details: [
       'Add machines with name, category, and hire rate',
       'Set status: Available, On Hire, Under Repair, In Transit',
@@ -238,7 +239,7 @@ const steps = [
     gradientEnd: '#4f46e5',
     accentColor: '#7c3aed',
     title: 'Book jobs instantly',
-    desc: "When a customer calls, book the job in under a minute using the 4-step wizard. Pick the machine, customer, dates, and delivery details — Hasky will flag any conflicts automatically.",
+    desc: "When a customer calls, book the job in under a minute using the 4-step wizard. Pick the machine, customer, dates, and delivery details â€” Hasky will flag any conflicts automatically.",
     details: [
       '4-step guided booking wizard',
       'Conflict detection prevents double-bookings',
@@ -253,10 +254,10 @@ const steps = [
     gradientEnd: '#0369a1',
     accentColor: '#0284c7',
     title: 'Send quotes & invoices',
-    desc: "Generate a professional quote or invoice in seconds. Share it via a link — your customer gets a clean page where they can accept the quote or pay the invoice by card. No back and forth.",
+    desc: "Generate a professional quote or invoice in seconds. Share it via a link â€” your customer gets a clean page where they can accept the quote or pay the invoice by card. No back and forth.",
     details: [
       'Professional branded PDFs in seconds',
-      'Share via unique link — no login needed for customers',
+      'Share via unique link â€” no login needed for customers',
       'Customers can accept quotes online',
       'Card payments via Stripe built right in',
     ],
@@ -268,7 +269,7 @@ const steps = [
     gradientEnd: '#0f766e',
     accentColor: '#0d9488',
     title: 'Track everything',
-    desc: "Your dashboard shows everything at a glance — what's out, what's overdue, what's coming up. Reports give you P&L, revenue by machine, and a GST summary ready for your accountant.",
+    desc: "Your dashboard shows everything at a glance â€” what's out, what's overdue, what's coming up. Reports give you P&L, revenue by machine, and a GST summary ready for your accountant.",
     details: [
       'Live dashboard with fleet status and attention items',
       'Profit & Loss by month or quarter',
@@ -279,11 +280,11 @@ const steps = [
   },
 ];
 
-// ── Animation variants ─────────────────────────────────────────────────────
+// â”€â”€ Animation variants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const } },
 };
 
 const stagger = {
@@ -291,12 +292,12 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.08 } },
 };
 
-// ── Page ──────────────────────────────────────────────────────────────────
+// â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function HowItWorksPage() {
   return (
     <LandingLayout>
-      {/* ── Hero ──────────────────────────────────────────────────────── */}
+      {/* â”€â”€ Hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 pb-16 pt-24 text-center lg:px-12 lg:pt-32">
         <motion.div
           className="mx-auto max-w-3xl"
@@ -336,7 +337,7 @@ export default function HowItWorksPage() {
         </motion.div>
       </section>
 
-      {/* ── Steps ─────────────────────────────────────────────────────── */}
+      {/* â”€â”€ Steps â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 pb-24 lg:px-12">
         <div className="mx-auto max-w-6xl space-y-24">
           {steps.map((step, i) => (
@@ -371,7 +372,7 @@ export default function HowItWorksPage() {
                         className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-white text-[10px]"
                         style={{ background: step.accentColor }}
                       >
-                        ✓
+                        âœ“
                       </span>
                       {d}
                     </li>
@@ -388,7 +389,7 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      {/* ── Time estimate cards ───────────────────────────────────────── */}
+      {/* â”€â”€ Time estimate cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 py-16 lg:px-12">
         <motion.div
           className="mx-auto max-w-4xl"
@@ -402,9 +403,9 @@ export default function HowItWorksPage() {
           </h2>
           <div className="grid gap-5 sm:grid-cols-3">
             {[
-              { time: '2 min', label: 'Create your account', icon: '👤', color: '#7c3aed' },
-              { time: '5 min', label: 'Add your machines', icon: '🚜', color: '#f59e0b' },
-              { time: '1 min', label: 'Book your first job', icon: '📅', color: '#0d9488' },
+              { time: '2 min', label: 'Create your account', icon: 'ðŸ‘¤', color: '#7c3aed' },
+              { time: '5 min', label: 'Add your machines', icon: 'ðŸšœ', color: '#f59e0b' },
+              { time: '1 min', label: 'Book your first job', icon: 'ðŸ“…', color: '#0d9488' },
             ].map((t, idx) => (
               <motion.div
                 key={t.label}
@@ -433,7 +434,7 @@ export default function HowItWorksPage() {
         </motion.div>
       </section>
 
-      {/* ── CTA ───────────────────────────────────────────────────────── */}
+      {/* â”€â”€ CTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 py-24 text-center lg:px-12">
         <motion.div
           className="relative mx-auto max-w-xl overflow-hidden rounded-3xl px-8 py-14"
@@ -463,10 +464,12 @@ export default function HowItWorksPage() {
             className={ctaBtnClass}
             style={{ ...ctaBtnStyle, fontSize: '1rem', padding: '0.875rem 2.5rem', borderRadius: '1rem' }}
           >
-            Create your free account →
+            Create your free account â†’
           </Link>
         </motion.div>
       </section>
     </LandingLayout>
   );
 }
+
+

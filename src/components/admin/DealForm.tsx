@@ -1,8 +1,9 @@
-﻿import { useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useMemo } from 'react';
+import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { DEAL_STATUSES } from '../../lib/constants';
+import { AddressAutocomplete } from '../ui/AddressAutocomplete';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
 import { Input } from '../ui/Input';
@@ -22,7 +23,7 @@ const schema = z.object({
   end_date_needed: z.string().optional(),
   client_rate: z.coerce.number().optional(),
   supplier_rate: z.coerce.number().optional(),
-  status: z.string().default('lead'),
+  status: z.enum(DEAL_STATUSES).default('lead'),
   notes: z.string().optional(),
 });
 
@@ -55,20 +56,39 @@ export function DealForm({ defaultValues, onSubmit, loading }: DealFormProps) {
     [defaultValues],
   );
 
-  const { register, handleSubmit, formState: { errors } } = useForm<any>({
-    resolver: zodResolver(schema) as any,
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<DealFormValues>({
+    resolver: zodResolver(schema) as Resolver<DealFormValues>,
     values,
   });
 
   return (
-    <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit((formValues) => onSubmit(formValues as DealFormValues))}>
+    <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit((formValues) => onSubmit(formValues))}>
       <div className="md:col-span-2"><label className="mb-1 block text-sm font-medium text-slate-700">Client name *</label><Input {...register('lead_client_name')} error={errors.lead_client_name?.message} /></div>
       <div><label className="mb-1 block text-sm font-medium text-slate-700">Client company</label><Input {...register('lead_company_name')} /></div>
       <div><label className="mb-1 block text-sm font-medium text-slate-700">Contact phone</label><Input {...register('lead_contact_phone')} /></div>
       <div><label className="mb-1 block text-sm font-medium text-slate-700">Contact email</label><Input {...register('lead_contact_email')} /></div>
       <div><label className="mb-1 block text-sm font-medium text-slate-700">Machine category</label><Input {...register('machine_category_needed')} /></div>
       <div><label className="mb-1 block text-sm font-medium text-slate-700">Machine size</label><Input {...register('machine_size_needed')} /></div>
-      <div><label className="mb-1 block text-sm font-medium text-slate-700">Location</label><Input {...register('location_needed')} /></div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-slate-700">Location</label>
+        <Controller
+          control={control}
+          name="location_needed"
+          render={({ field }) => (
+            <AddressAutocomplete
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              onSelect={(suggestion) => field.onChange(suggestion.fullAddress)}
+              placeholder="Search location or type manually"
+            />
+          )}
+        />
+      </div>
       <div><label className="mb-1 block text-sm font-medium text-slate-700">Status</label><Select {...register('status')}>{DEAL_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}</Select></div>
       <div><label className="mb-1 block text-sm font-medium text-slate-700">Start date</label><DatePicker {...register('start_date_needed')} /></div>
       <div><label className="mb-1 block text-sm font-medium text-slate-700">End date</label><DatePicker {...register('end_date_needed')} /></div>

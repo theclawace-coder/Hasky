@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import {
   Truck,
@@ -11,16 +12,19 @@ import {
   ChevronLeft,
   ChevronRight,
   MapPin,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { CustomerForm, type CustomerFormValues } from '../customers/CustomerForm';
 import { AddressAutocomplete } from '../ui/AddressAutocomplete';
 import { StatusBadge } from '../ui/StatusBadge';
+import { LineItemsTable, type LineItemValue } from '../invoices/LineItemsTable';
 import { formatCurrency } from '../../lib/utils';
 import { cn } from '../../lib/utils';
-import { RATE_TYPES } from '../../lib/constants';
-import type { Customer, Machine } from '../../types';
+import { getConflictedMachineIds, getEffectiveMachineStatus, isMachineBookable } from '../../lib/machineAvailability';
+import { DEPOSIT_TYPES, PAYMENT_PLANS, RATE_TYPES } from '../../lib/constants';
+import type { BookingChargeTemplate, Customer, Machine } from '../../types';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -32,12 +36,28 @@ export interface WizardValues {
   rateType: string;
   rateAmount: number;
   deliveryAddress: string;
+  deliveryLat: number | null;
+  deliveryLng: number | null;
+  paymentPlan: string;
+  depositType: string;
+  depositValue: number;
+  chargeItems: LineItemValue[];
   notes: string;
+}
+
+interface ConflictingBooking {
+  machine_id: string;
+  start_date: string;
+  end_date: string | null;
+  status: string;
 }
 
 interface NewBookingWizardProps {
   machines: Machine[];
   customers: Customer[];
+  /** Existing confirmed bookings used to detect date conflicts in Step 1. */
+  existingBookings?: ConflictingBooking[];
+  defaultChargeTemplates?: BookingChargeTemplate[];
   defaultMachineId?: string;
   defaultStartDate?: string;
   onSubmit: (values: WizardValues) => Promise<void>;
@@ -156,6 +176,8 @@ function ReviewRow({
 export function NewBookingWizard({
   machines,
   customers,
+  existingBookings = [],
+  defaultChargeTemplates = [],
   defaultMachineId,
   defaultStartDate,
   onSubmit,
@@ -180,12 +202,52 @@ export function NewBookingWizard({
     rateType: 'daily',
     rateAmount: defaultMachine ? Number(defaultMachine.daily_rate ?? 0) : 0,
     deliveryAddress: '',
+    deliveryLat: null,
+    deliveryLng: null,
+    paymentPlan: 'on_completion',
+    depositType: 'fixed',
+    depositValue: 0,
+    chargeItems: defaultChargeTemplates.map((item) => ({
+      description: item.description,
+      quantity: Number(item.quantity ?? 1),
+      unit_price: Number(item.unit_price ?? 0),
+    })),
     notes: '',
   });
 
-  const availableMachines = machines.filter(
-    (m) => m.status === 'available' || m.id === defaultMachineId,
+  const todayDate = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  const bookableMachines = machines.filter(
+    (m) => isMachineBookable(m) || m.id === defaultMachineId,
   );
+
+  /** IDs of machines that have a confirmed booking overlapping the selected dates. */
+  const conflictedMachineIds = useMemo(() => {
+    if (!values.startDate) return new Set<string>();
+    return getConflictedMachineIds(existingBookings, values.startDate, values.endDate || values.startDate, ['confirmed']);
+  }, [existingBookings, values.startDate, values.endDate]);
+
+  const onHireTodayMachineIds = useMemo(
+    () => getConflictedMachineIds(existingBookings, todayDate, todayDate, ['confirmed']),
+    [existingBookings, todayDate],
+  );
+
+  const selectedMachineId = values.machine?.id ?? null;
+
+  // If dates are changed to a conflicting range, force re-selection.
+  useEffect(() => {
+    if (!selectedMachineId) {
+      return;
+    }
+    if (!conflictedMachineIds.has(selectedMachineId)) {
+      return;
+    }
+    setValues((current) => (
+      current.machine?.id === selectedMachineId
+        ? { ...current, machine: null }
+        : current
+    ));
+  }, [conflictedMachineIds, selectedMachineId]);
 
   const filteredCustomers = useMemo(
     () =>
@@ -208,9 +270,28 @@ export function NewBookingWizard({
     );
   }, [values.startDate, values.endDate]);
 
-  const estimatedTotal = values.rateAmount * estimatedDays;
+  const hireSubtotal = values.rateAmount * estimatedDays;
+  const extrasSubtotal = values.chargeItems.reduce(
+    (sum, item) => sum + Number(item.quantity) * Number(item.unit_price),
+    0,
+  );
+  const estimatedTotal = hireSubtotal + extrasSubtotal;
+  const estimatedDeposit = useMemo(() => {
+    if (values.paymentPlan !== 'deposit') {
+      return 0;
+    }
+    if (values.depositType === 'percent') {
+      const boundedPercent = Math.min(Math.max(values.depositValue, 0), 100);
+      return (estimatedTotal * boundedPercent) / 100;
+    }
+    return Math.max(values.depositValue, 0);
+  }, [estimatedTotal, values.paymentPlan, values.depositType, values.depositValue]);
 
   const handleMachineSelect = (machine: Machine) => {
+    if (conflictedMachineIds.has(machine.id)) {
+      toast.error(`${machine.name} is already booked for those dates. Pick different dates or another machine.`);
+      return;
+    }
     const rateMap: Record<string, number> = {
       daily:   Number(machine.daily_rate ?? 0),
       weekly:  Number(machine.weekly_rate ?? 0),
@@ -249,10 +330,47 @@ export function NewBookingWizard({
         <StepIndicator current={1} />
         <div>
           <h2 className="text-xl font-bold text-slate-900">Choose equipment</h2>
-          <p className="text-sm text-slate-500">Which machine is going on hire?</p>
+          <p className="text-sm text-slate-500">Pick dates first to see what's available</p>
         </div>
 
-        {availableMachines.length === 0 ? (
+        {/* Date pickers — selecting here filters machine availability */}
+        <div className="grid gap-4 sm:grid-cols-2 rounded-xl border border-violet-100 bg-violet-50 p-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-violet-600">
+              Start date <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="date"
+              value={values.startDate}
+              onChange={(e) => setValues((v) => ({
+                ...v,
+                startDate: e.target.value,
+                // auto-fill or reset endDate when startDate changes
+                endDate: v.endDate && v.endDate >= e.target.value ? v.endDate : e.target.value,
+              }))}
+              className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-violet-600">
+              End date <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="date"
+              value={values.endDate}
+              min={values.startDate}
+              onChange={(e) => setValues((v) => ({ ...v, endDate: e.target.value }))}
+              className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
+            />
+          </div>
+          {values.startDate && conflictedMachineIds.size > 0 ? (
+            <p className="sm:col-span-2 text-xs text-amber-700">
+              {conflictedMachineIds.size} machine{conflictedMachineIds.size > 1 ? 's are' : ' is'} already booked for these dates and shown below.
+            </p>
+          ) : null}
+        </div>
+
+        {bookableMachines.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 py-16 text-center">
             <Truck className="size-10 text-slate-300" />
             <p className="mt-3 font-semibold text-slate-600">No available machines</p>
@@ -266,24 +384,35 @@ export function NewBookingWizard({
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {availableMachines.map((machine) => {
+            {bookableMachines.map((machine) => {
               const isSelected = values.machine?.id === machine.id;
+              const isConflicted = values.startDate ? conflictedMachineIds.has(machine.id) : false;
               const photo = machine.photo_urls?.[0];
               return (
                 <button
                   key={machine.id}
                   type="button"
+                  data-testid="machine-card"
+                  data-machine-id={machine.id}
+                  disabled={isConflicted}
                   onClick={() => handleMachineSelect(machine)}
                   className={cn(
                     'relative flex flex-col overflow-hidden rounded-2xl border-2 text-left transition-all active:scale-[0.98]',
-                    isSelected
+                    isConflicted
+                      ? 'cursor-not-allowed border-amber-200 bg-amber-50/50 opacity-75'
+                      : isSelected
                       ? 'border-violet-500 shadow-lg shadow-violet-500/15'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md',
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md',
                   )}
                 >
-                  {isSelected && (
+                  {isSelected && !isConflicted && (
                     <div className="absolute right-3 top-3 z-10 flex size-7 items-center justify-center rounded-full bg-violet-600 shadow-lg">
                       <Check className="size-4 text-white" />
+                    </div>
+                  )}
+                  {isConflicted && (
+                    <div className="absolute left-2 top-2 z-10 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                      Booked
                     </div>
                   )}
                   <div className="flex h-32 items-center justify-center overflow-hidden bg-slate-100">
@@ -303,7 +432,12 @@ export function NewBookingWizard({
                         {formatCurrency(Number(machine.daily_rate ?? 0))}
                         <span className="text-xs font-normal text-slate-400">/day</span>
                       </p>
-                      <StatusBadge status={machine.status} />
+                      <StatusBadge
+                        status={getEffectiveMachineStatus(
+                          machine,
+                          values.startDate ? conflictedMachineIds : onHireTodayMachineIds,
+                        )}
+                      />
                     </div>
                   </div>
                 </button>
@@ -312,9 +446,19 @@ export function NewBookingWizard({
           </div>
         )}
 
+        {!values.startDate && bookableMachines.length > 0 && (
+          <p className="text-center text-xs text-amber-600">
+            Enter a start date above to check machine availability, then select a machine.
+          </p>
+        )}
         <WizardNav
           onNext={() => setStep(2)}
-          nextDisabled={!values.machine}
+          nextDisabled={
+            !values.machine
+            || !values.startDate
+            || !values.endDate
+            || (values.machine ? conflictedMachineIds.has(values.machine.id) : false)
+          }
           nextLabel="Next: Choose Client"
         />
       </div>
@@ -424,34 +568,97 @@ export function NewBookingWizard({
         <StepIndicator current={3} />
         <div>
           <h2 className="text-xl font-bold text-slate-900">Job details</h2>
-          <p className="text-sm text-slate-500">Set the dates and hire rate</p>
+          <p className="text-sm text-slate-500">Set rate, payment plan, and extras</p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-              Start date <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              value={values.startDate}
-              onChange={(e) => setValues((v) => ({ ...v, startDate: e.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
-            />
+        {/* Conflict warning: re-check if the selected machine is now conflicted with the chosen dates */}
+        {values.machine && values.startDate && conflictedMachineIds.has(values.machine.id) && (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+            <div className="text-sm">
+              <p className="font-semibold text-amber-800">Date conflict detected</p>
+              <p className="text-amber-700">
+                {values.machine.name} has a confirmed booking overlapping your selected dates.{' '}
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="font-semibold underline hover:no-underline"
+                >
+                  Go back to choose a different machine.
+                </button>
+              </p>
+            </div>
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-              End date <span className="text-slate-400 font-normal text-xs">(optional)</span>
-            </label>
-            <input
-              type="date"
-              value={values.endDate}
-              min={values.startDate}
-              onChange={(e) => setValues((v) => ({ ...v, endDate: e.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
-            />
+        )}
+
+        {/* Dates — show compact summary if set in Step 1, or input fields if missing */}
+        {values.startDate ? (
+          <div className="flex items-center justify-between rounded-xl border border-violet-100 bg-violet-50 px-4 py-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">Hire dates</p>
+              <p className="mt-0.5 font-semibold text-slate-900">
+                {values.startDate}
+                {values.endDate && values.endDate !== values.startDate ? ` → ${values.endDate}` : ''}
+                <span className="ml-2 text-sm font-normal text-violet-600">
+                  ({estimatedDays} day{estimatedDays !== 1 ? 's' : ''})
+                </span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="text-xs font-semibold text-violet-600 hover:text-violet-800 hover:underline"
+            >
+              Change
+            </button>
           </div>
-        </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                Start date <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={values.startDate}
+                onChange={(e) => setValues((v) => ({ ...v, startDate: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                End date <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={values.endDate}
+                min={values.startDate}
+                onChange={(e) => setValues((v) => ({ ...v, endDate: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Conflict warning: machine has a confirmed booking overlapping these dates */}
+        {values.startDate && values.machine && conflictedMachineIds.has(values.machine.id) ? (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Machine conflict detected</p>
+              <p className="text-xs text-amber-600">
+                {values.machine.name} has a confirmed booking overlapping these dates.{' '}
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="font-semibold underline hover:text-amber-800"
+                >
+                  Go back to choose a different machine.
+                </button>
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -481,16 +688,109 @@ export function NewBookingWizard({
           </div>
         </div>
 
+        <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="text-sm font-semibold text-slate-700">Payment plan</h3>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {PAYMENT_PLANS.map((plan) => (
+              <button
+                key={plan}
+                type="button"
+                onClick={() => setValues((v) => ({ ...v, paymentPlan: plan }))}
+                className={cn(
+                  'rounded-xl border px-3 py-2 text-left text-xs font-medium transition-colors',
+                  values.paymentPlan === plan
+                    ? 'border-violet-300 bg-violet-50 text-violet-700'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300',
+                )}
+              >
+                {plan === 'deposit' ? 'Deposit' : plan === 'upfront' ? 'Upfront' : 'On completion'}
+              </button>
+            ))}
+          </div>
+          {values.paymentPlan === 'deposit' ? (
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Deposit type</label>
+                  <select
+                    value={values.depositType}
+                    onChange={(event) => setValues((v) => ({ ...v, depositType: event.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
+                  >
+                    {DEPOSIT_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {type === 'fixed' ? 'Fixed amount ($)' : 'Percentage (%)'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    {values.depositType === 'percent' ? 'Deposit %' : 'Deposit amount ($)'}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={values.depositType === 'percent' ? 100 : undefined}
+                    value={values.depositValue}
+                    onChange={(event) => setValues((v) => ({ ...v, depositValue: Number(event.target.value) }))}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
+                  />
+                </div>
+              </div>
+              {estimatedDeposit > 0 ? (
+                <p className="text-xs font-medium text-slate-600">
+                  = <span className="text-violet-700 font-bold">{formatCurrency(estimatedDeposit)}</span> deposit required
+                  {values.depositType === 'percent' ? ` (${values.depositValue}% of ${formatCurrency(estimatedTotal)})` : ''}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="text-sm font-semibold text-slate-700">Extras</h3>
+          <LineItemsTable
+            items={values.chargeItems}
+            onChange={(items) => setValues((v) => ({ ...v, chargeItems: items }))}
+          />
+        </div>
+
         {/* Live total estimate */}
         {values.startDate && (
-          <div className="rounded-xl bg-violet-50 px-4 py-3">
+          <div className="rounded-xl bg-violet-50 px-4 py-3 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-sm text-violet-700">Estimated total</span>
               <span className="text-lg font-bold text-violet-900">{formatCurrency(estimatedTotal)}</span>
             </div>
             <p className="text-xs text-violet-500">
-              {estimatedDays} day{estimatedDays !== 1 ? 's' : ''} × {formatCurrency(values.rateAmount)}/{values.rateType}
+              Hire: {estimatedDays} day{estimatedDays !== 1 ? 's' : ''} × {formatCurrency(values.rateAmount)}/{values.rateType}
+              {extrasSubtotal > 0 ? ` + Extras: ${formatCurrency(extrasSubtotal)}` : ''}
             </p>
+            <div className="border-t border-violet-200 mt-2 pt-2 space-y-0.5">
+              <div className="flex items-center justify-between text-xs text-violet-500">
+                <span>Subtotal (ex GST)</span>
+                <span>{formatCurrency(estimatedTotal)}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-violet-500">
+                <span>GST (10%)</span>
+                <span>{formatCurrency(estimatedTotal * 0.1)}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs font-bold text-violet-800">
+                <span>Total inc. GST</span>
+                <span>{formatCurrency(estimatedTotal * 1.1)}</span>
+              </div>
+            </div>
+            {values.paymentPlan === 'deposit' ? (
+              <p className="text-xs font-semibold text-violet-700 pt-1 border-t border-violet-200">
+                Deposit due before confirmation: {formatCurrency(estimatedDeposit)}
+              </p>
+            ) : values.paymentPlan === 'upfront' ? (
+              <p className="text-xs font-semibold text-violet-700 pt-1 border-t border-violet-200">
+                Full payment required before confirmation: {formatCurrency(estimatedTotal * 1.1)}
+              </p>
+            ) : null}
           </div>
         )}
 
@@ -510,7 +810,20 @@ export function NewBookingWizard({
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Delivery address</label>
               <AddressAutocomplete
                 value={values.deliveryAddress}
-                onChange={(v) => setValues((vals) => ({ ...vals, deliveryAddress: v }))}
+                onChange={(v) => setValues((vals) => ({
+                  ...vals,
+                  deliveryAddress: v,
+                  deliveryLat: null,
+                  deliveryLng: null,
+                }))}
+                onSelect={(suggestion) =>
+                  setValues((vals) => ({
+                    ...vals,
+                    deliveryAddress: suggestion.fullAddress,
+                    deliveryLat: suggestion.latitude ?? null,
+                    deliveryLng: suggestion.longitude ?? null,
+                  }))
+                }
                 placeholder="Search address or type manually"
               />
             </div>
@@ -529,7 +842,7 @@ export function NewBookingWizard({
         <WizardNav
           onBack={() => setStep(2)}
           onNext={() => setStep(4)}
-          nextDisabled={!values.startDate}
+          nextDisabled={!values.startDate || !values.endDate}
           nextLabel="Review Job"
         />
       </div>
@@ -574,12 +887,40 @@ export function NewBookingWizard({
         </div>
         <div className="p-4">
           <ReviewRow icon={<FileText className="size-4 text-orange-500" />} label="Estimated Total">
-            <p className="text-2xl font-bold text-slate-900">{formatCurrency(estimatedTotal)}</p>
+            <p className="text-2xl font-bold text-slate-900">{formatCurrency(estimatedTotal * 1.1)} <span className="text-sm font-normal text-slate-400">inc. GST</span></p>
             <p className="text-xs text-slate-400">
-              {formatCurrency(values.rateAmount)}/{values.rateType}
+              Subtotal: {formatCurrency(estimatedTotal)} + GST: {formatCurrency(estimatedTotal * 0.1)}
+              {extrasSubtotal > 0 ? ` (Hire: ${formatCurrency(hireSubtotal)} + Extras: ${formatCurrency(extrasSubtotal)})` : ''}
             </p>
           </ReviewRow>
         </div>
+        <div className="p-4">
+          <ReviewRow icon={<FileText className="size-4 text-violet-500" />} label="Payment">
+            <p className="text-sm font-semibold text-slate-900">
+              {values.paymentPlan === 'deposit'
+                ? 'Deposit required before confirmation'
+                : values.paymentPlan === 'upfront'
+                  ? 'Full payment required before confirmation'
+                  : 'Payment due on completion'}
+            </p>
+            {values.paymentPlan === 'deposit' ? (
+              <p className="text-xs text-slate-500">Deposit amount: {formatCurrency(estimatedDeposit)}</p>
+            ) : null}
+          </ReviewRow>
+        </div>
+        {values.chargeItems.length > 0 ? (
+          <div className="p-4">
+            <ReviewRow icon={<FileText className="size-4 text-sky-500" />} label="Extras">
+              <div className="space-y-1">
+                {values.chargeItems.map((item, index) => (
+                  <p key={`${item.description}-${index}`} className="text-xs text-slate-600">
+                    {item.description || 'Extra'} - {item.quantity} x {formatCurrency(item.unit_price)}
+                  </p>
+                ))}
+              </div>
+            </ReviewRow>
+          </div>
+        ) : null}
         {values.deliveryAddress && (
           <div className="p-4">
             <ReviewRow icon={<MapPin className="size-4 text-slate-400" />} label="Delivery">
@@ -597,13 +938,29 @@ export function NewBookingWizard({
       </div>
 
       <p className="rounded-xl bg-slate-50 px-4 py-2.5 text-xs text-slate-500">
-        This will be saved as a <strong>Quote</strong>. You can confirm it and create an invoice from the job detail page.
+        This job will be saved as <strong>Pending</strong>. Record any required payment on the job page, then confirm it to put the machine on hire.
       </p>
+
+      {values.machine && conflictedMachineIds.has(values.machine.id) && (
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-600" />
+          <div className="text-sm">
+            <p className="font-semibold text-red-800">Cannot create — machine already booked</p>
+            <p className="text-red-700">
+              {values.machine.name} has a confirmed booking overlapping these dates.{' '}
+              <button type="button" onClick={() => setStep(1)} className="font-semibold underline hover:no-underline">
+                Go back to fix it.
+              </button>
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-3">
         <Button
           className="w-full"
           loading={loading}
+          disabled={!!(values.machine && conflictedMachineIds.has(values.machine.id))}
           onClick={() => { void onSubmit(values); }}
         >
           Create Job

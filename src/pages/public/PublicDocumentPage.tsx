@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { CreditCard, Download } from 'lucide-react';
@@ -23,7 +23,8 @@ export default function PublicDocumentPage() {
     token: string;
   }>();
   const [searchParams] = useSearchParams();
-  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [manualPaymentOpen, setManualPaymentOpen] = useState(false);
+  const [paymentPromptDismissed, setPaymentPromptDismissed] = useState(false);
 
   const documentType = isDocumentType(rawDocumentType) ? rawDocumentType : null;
 
@@ -34,16 +35,15 @@ export default function PublicDocumentPage() {
     staleTime: 30_000,
   });
 
-  useEffect(() => {
-    if (!documentQuery.data || searchParams.get('pay') !== '1') return;
-    if (documentQuery.data.can_pay_online) {
-      setPaymentOpen(true);
-    }
-  }, [documentQuery.data, searchParams]);
-
   const payload = documentQuery.data;
   const document = payload?.document as Invoice | Quote | undefined;
   const items = payload?.items as Array<InvoiceItem | QuoteItem> | undefined;
+  const requestedPayLink = searchParams.get('pay') === '1';
+  const paymentOpen = manualPaymentOpen || (
+    requestedPayLink
+    && !paymentPromptDismissed
+    && Boolean(payload?.can_pay_online)
+  );
 
   const summary = useMemo(() => {
     if (!document || !documentType) {
@@ -54,10 +54,16 @@ export default function PublicDocumentPage() {
       ? (document as Invoice).invoice_number
       : (document as Quote).quote_number;
 
+    const total = Number(document.total ?? 0);
+    const paidAmount = documentType === 'invoice' ? Number((document as Invoice).paid_amount ?? 0) : 0;
+    const outstanding = Math.max(total - paidAmount, 0);
+
     return {
       label: documentType === 'invoice' ? 'Invoice' : 'Quote',
       number,
-      total: Number(document.total ?? 0),
+      total,
+      paidAmount,
+      outstanding,
       status: document.status,
     };
   }, [document, documentType]);
@@ -101,13 +107,23 @@ export default function PublicDocumentPage() {
               <StatusBadge status={summary.status} />
             </div>
             <p className="mt-0.5 text-sm text-slate-500">
-              {payload.customer?.name ?? 'Customer'} - {formatCurrency(summary.total)}
+              {payload.customer?.name ?? 'Customer'} — Total: {formatCurrency(summary.total)}
+              {summary.paidAmount > 0 ? (
+                <span className="ml-2 font-medium text-emerald-600">
+                  · {formatCurrency(summary.outstanding)} outstanding
+                </span>
+              ) : null}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
             {payload.can_pay_online ? (
-              <Button onClick={() => setPaymentOpen(true)}>
+              <Button
+                onClick={() => {
+                  setPaymentPromptDismissed(false);
+                  setManualPaymentOpen(true);
+                }}
+              >
                 <CreditCard className="size-4" />
                 Pay Now
               </Button>
@@ -138,11 +154,14 @@ export default function PublicDocumentPage() {
 
       <PaymentModal
         open={paymentOpen}
-        onClose={() => setPaymentOpen(false)}
+        onClose={() => {
+          setManualPaymentOpen(false);
+          setPaymentPromptDismissed(true);
+        }}
         shareToken={token}
         documentType={documentType}
         documentNumber={summary.number}
-        amount={summary.total}
+        amount={summary.outstanding}
         publishableKey={payload.stripe_publishable_key}
         onPaymentComplete={() => void documentQuery.refetch()}
       />

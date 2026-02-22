@@ -42,7 +42,7 @@ const normalizeRelation = <T>(value: T | T[] | null | undefined): T | null => {
 const createShareToken = () =>
   `${crypto.randomUUID().replaceAll('-', '')}${crypto.randomUUID().replaceAll('-', '')}`;
 
-const getAppBaseUrl = (req: Request) => {
+const getAppBaseUrl = () => {
   const configured = (Deno.env.get('APP_BASE_URL') ?? '').trim();
   if (configured) {
     return configured.replace(/\/$/, '');
@@ -120,8 +120,12 @@ Deno.serve(async (req) => {
       return jsonResponse(404, { error: 'Document not found or access denied' });
     }
 
-    const customer = normalizeRelation<{ name?: string; email?: string }>(documentRow.customers as any);
-    const company = normalizeRelation<{ name?: string }>(documentRow.companies as any);
+    const customer = normalizeRelation<{ name?: string; email?: string }>(
+      documentRow.customers as { name?: string; email?: string } | { name?: string; email?: string }[] | null,
+    );
+    const company = normalizeRelation<{ name?: string }>(
+      documentRow.companies as { name?: string } | { name?: string }[] | null,
+    );
 
     const toEmail = recipientEmail ?? customer?.email ?? null;
     if (sendEmail && !toEmail) {
@@ -146,7 +150,7 @@ Deno.serve(async (req) => {
       return jsonResponse(500, { error: updateError.message });
     }
 
-    const appBaseUrl = getAppBaseUrl(req);
+    const appBaseUrl = getAppBaseUrl();
     const shareUrl = `${appBaseUrl}/public/${documentType}/${shareToken}`;
     const hasPositiveBalance = Number(documentRow.total ?? 0) > 0;
     const stripeEnabled = await hasStripePaymentsEnabled(adminClient, documentRow.company_id);

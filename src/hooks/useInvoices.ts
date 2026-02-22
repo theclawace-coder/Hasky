@@ -1,6 +1,6 @@
-﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { QUERY_STALE_TIME } from '../lib/constants';
-import { getInvoiceById, getInvoices, updateInvoiceStatus, upsertInvoice } from '../services/api';
+import { getInvoiceById, getInvoices, recordInvoicePayment, updateInvoiceStatus, upsertInvoice } from '../services/api';
 import type { Invoice, InvoiceItem } from '../types';
 
 export function useInvoices(status?: string) {
@@ -33,10 +33,19 @@ export function useInvoices(status?: string) {
     },
   });
 
+  const recordPaymentMutation = useMutation({
+    mutationFn: ({ id, amount }: { id: string; amount: number }) => recordInvoicePayment(id, amount),
+    onSuccess: (_, vars) => {
+      void queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      void queryClient.invalidateQueries({ queryKey: ['invoice', vars.id] });
+    },
+  });
+
   return {
     invoicesQuery,
     saveInvoiceMutation,
     updateStatusMutation,
+    recordPaymentMutation,
   };
 }
 

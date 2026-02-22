@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Truck,
   CalendarRange,
+  Map,
   Users,
   FileText,
   Receipt,
@@ -16,6 +17,7 @@ import {
   PanelLeftOpen,
   BookOpen,
   ChevronRight,
+  LifeBuoy,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useUiStore } from '../../store/uiStore';
@@ -25,6 +27,7 @@ const mainNav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'text-blue-400',   activeBg: 'bg-blue-500/20',   activeText: 'text-blue-200',   glow: 'rgba(59,130,246,0.35)' },
   { to: '/fleet',     label: 'Fleet',     icon: Truck,           color: 'text-amber-400',  activeBg: 'bg-amber-500/20',  activeText: 'text-amber-200',  glow: 'rgba(245,158,11,0.35)' },
   { to: '/bookings',  label: 'Jobs',      icon: CalendarRange,   color: 'text-violet-400', activeBg: 'bg-violet-500/20', activeText: 'text-violet-200', glow: 'rgba(139,92,246,0.35)' },
+  { to: '/map',       label: 'Map',       icon: Map,             color: 'text-cyan-400',   activeBg: 'bg-cyan-500/20',   activeText: 'text-cyan-200',   glow: 'rgba(6,182,212,0.35)' },
   { to: '/customers', label: 'Customers', icon: Users,           color: 'text-emerald-400',activeBg: 'bg-emerald-500/20',activeText: 'text-emerald-200',glow: 'rgba(16,185,129,0.35)' },
   { to: '/quotes',    label: 'Quotes',    icon: FileText,        color: 'text-sky-400',    activeBg: 'bg-sky-500/20',    activeText: 'text-sky-200',    glow: 'rgba(14,165,233,0.35)' },
   { to: '/invoices',  label: 'Invoices',  icon: Receipt,         color: 'text-orange-400', activeBg: 'bg-orange-500/20', activeText: 'text-orange-200', glow: 'rgba(249,115,22,0.35)' },
@@ -39,7 +42,11 @@ const adminNav = [
   { to: '/admin/companies',label: 'Companies',        icon: Building2 },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onHelpClick: () => void;
+}
+
+export function Sidebar({ onHelpClick }: SidebarProps) {
   const { profile, company, isPlatformAdmin, signOut } = useAuth();
   const { sidebarCollapsed, toggleSidebarCollapsed, sidebarOpen, setSidebarOpen } = useUiStore();
 
@@ -189,6 +196,22 @@ export function Sidebar() {
             </div>
           ) : null}
         </nav>
+
+        {/* Help button */}
+        <div className="border-t border-white/[0.06] px-3 pt-2 pb-1">
+          <button
+            onClick={() => { setSidebarOpen(false); onHelpClick(); }}
+            className={cn(
+              'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200',
+              'text-white/40 hover:bg-white/[0.06] hover:text-white/80',
+              sidebarCollapsed && 'justify-center px-2',
+            )}
+            title="Help Center"
+          >
+            <LifeBuoy className="size-5 shrink-0 text-white/30 transition-colors group-hover:text-white/60" />
+            {!sidebarCollapsed ? <span className="flex-1">Help</span> : null}
+          </button>
+        </div>
 
         {/* User footer */}
         <div className="border-t border-white/[0.06] p-3">

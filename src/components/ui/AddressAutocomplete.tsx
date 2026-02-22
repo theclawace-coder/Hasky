@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { MapPin, LoaderCircle } from 'lucide-react';
 import { useDebounce } from '../../hooks/useDebounce';
 import {
@@ -27,13 +28,19 @@ export function AddressAutocomplete({
   disabled,
   className,
 }: AddressAutocompleteProps) {
-  const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [suggestions, setSuggestions] = useState<MapboxAddressSuggestion[]>([]);
-  const [lookupError, setLookupError] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const debouncedValue = useDebounce(value, 300);
+  const queryText = debouncedValue.trim();
+  const canLookup = queryText.length >= 3;
+
+  const addressQuery = useQuery({
+    queryKey: ['address_lookup', queryText],
+    queryFn: ({ signal }) => searchMapboxAddresses(queryText, signal),
+    enabled: canLookup,
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
@@ -49,30 +56,9 @@ export function AddressAutocomplete({
     return () => window.removeEventListener('mousedown', onClickOutside);
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    const query = debouncedValue.trim();
-
-    if (!query || query.length < 3) {
-      return () => controller.abort();
-    }
-
-    setLoading(true);
-    setLookupError(null);
-
-    void searchMapboxAddresses(query, controller.signal)
-      .then((results) => setSuggestions(results))
-      .catch((error: unknown) => {
-        if (error instanceof Error && error.name === 'AbortError') {
-          return;
-        }
-        setLookupError('Address suggestions unavailable');
-      })
-      .finally(() => setLoading(false));
-
-    return () => controller.abort();
-  }, [debouncedValue]);
-
+  const loading = canLookup && addressQuery.isFetching;
+  const suggestions: MapboxAddressSuggestion[] = canLookup ? (addressQuery.data ?? []) : [];
+  const lookupError = canLookup && addressQuery.isError ? 'Address suggestions unavailable' : null;
   const showMenu = open && (loading || suggestions.length > 0 || Boolean(lookupError));
 
   return (
@@ -82,10 +68,6 @@ export function AddressAutocomplete({
         onChange={(event) => {
           const nextValue = event.target.value;
           onChange(nextValue);
-          if (nextValue.trim().length < 3) {
-            setSuggestions([]);
-            setLookupError(null);
-          }
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}

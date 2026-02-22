@@ -1,0 +1,45 @@
+{
+  "cookies": [
+    {
+      "name": "m",
+      "value": "11472451-f3c1-42b4-9c82-4bc021fc4b7effb739",
+      "domain": "m.stripe.com",
+      "path": "/",
+      "expires": 1806282789.904264,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__stripe_mid",
+      "value": "709386f4-d770-44be-92da-793cbd50a91555df4f",
+      "domain": "127.0.0.1",
+      "path": "/",
+      "expires": 1803258789,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "__stripe_sid",
+      "value": "c4a3babd-f018-4399-b9b8-e022321b66c7749ed4",
+      "domain": "127.0.0.1",
+      "path": "/",
+      "expires": 1771724589,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://127.0.0.1:3000",
+      "localStorage": [
+        {
+          "name": "sb-qsqmwsouqgfrxwgnobeq-auth-token",
+          "value": "{\"access_token\":\"eyJhbGciOiJFUzI1NiIsImtpZCI6ImIyM2IxZGM0LTNmN2MtNDQ5Yi1iYjljLWQ1YWZlMmZkMjNiOSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3FzcW13c291cWdmcnh3Z25vYmVxLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJmYmRkMzM3NS05OTVhLTQyMzEtYmY4ZC02OGYwYTk1Njg4NWYiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzcxNzI2MzkxLCJpYXQiOjE3NzE3MjI3OTEsImVtYWlsIjoiZXJmYW5hdTkzQGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzcxNzIyNzkxfV0sInNlc3Npb25faWQiOiI4Mjg3MzA1MC1kYzUyLTRmMjktOWJkNy0wYzU4ZDIxMmNlYWYiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.4iLRKNchuD5WDQfxkmEd61BrlsFjUsFmBvd54kDb7V65CjTQR7l4p49ngCqibhnog7YoM-3_tWpSNva0med76Q\",\"token_type\":\"bearer\",\"expires_in\":3600,\"expires_at\":1771726391,\"refresh_token\":\"swrf7qjneryr\",\"user\":{\"id\":\"fbdd3375-995a-4231-bf8d-68f0a956885f\",\"aud\":\"authenticated\",\"role\":\"authenticated\",\"email\":\"erfanau93@gmail.com\",\"email_confirmed_at\":\"2026-02-19T07:25:45.103058Z\",\"phone\":\"\",\"confirmed_at\":\"2026-02-19T07:25:45.103058Z\",\"last_sign_in_at\":\"2026-02-22T01:13:11.54235978Z\",\"app_metadata\":{\"provider\":\"email\",\"providers\":[\"email\"]},\"user_metadata\":{\"email_verified\":true},\"identities\":[{\"identity_id\":\"06ec8e45-1cab-4ecb-9fc4-c771df9c9cfe\",\"id\":\"fbdd3375-995a-4231-bf8d-68f0a956885f\",\"user_id\":\"fbdd3375-995a-4231-bf8d-68f0a956885f\",\"identity_data\":{\"email\":\"erfanau93@gmail.com\",\"email_verified\":false,\"phone_verified\":false,\"sub\":\"fbdd3375-995a-4231-bf8d-68f0a956885f\"},\"provider\":\"email\",\"last_sign_in_at\":\"2026-02-19T07:25:45.099192Z\",\"created_at\":\"2026-02-19T07:25:45.099238Z\",\"updated_at\":\"2026-02-19T07:25:45.099238Z\",\"email\":\"erfanau93@gmail.com\"}],\"created_at\":\"2026-02-19T07:25:45.095857Z\",\"updated_at\":\"2026-02-22T01:13:11.549489Z\",\"is_anonymous\":false},\"weak_password\":null}"
+        }
+      ]
+    }
+  ]
+}

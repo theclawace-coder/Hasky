@@ -1,3 +1,4 @@
-﻿import { useAuthContext } from '../contexts/AuthContext';
+﻿import { useAuthContext } from '../contexts/auth-context';
 
 export const useAuth = () => useAuthContext();
+

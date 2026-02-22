@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
@@ -21,37 +21,45 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { formatDate } from '../../lib/utils';
+import type { Profile, TeamInvite } from '../../types';
 
 const tabs = ['Company Profile', 'Team Members', 'Cross-Hire Preferences', 'Invoice Settings', 'My Profile'] as const;
 type Tab = (typeof tabs)[number];
+type TeamRole = Profile['role'];
+
+interface CompanyFormState {
+  name: string;
+  abn: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  state: string;
+}
+
+interface ProfileFormState {
+  full_name: string;
+  phone: string;
+  password: string;
+}
+
+interface SettingsFormState {
+  allow_cross_hire: boolean;
+  payment_terms_days: number;
+  bank_bsb: string;
+  bank_account_number: string;
+  bank_account_name: string;
+  default_invoice_notes: string;
+}
+
+interface StripeFormState {
+  publishable_key: string;
+}
 
 export default function Settings() {
   const { user, profile, company, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('Company Profile');
-
-  const [companyForm, setCompanyForm] = useState({
-    name: company?.name ?? '',
-    abn: company?.abn ?? '',
-    phone: company?.phone ?? '',
-    email: company?.email ?? '',
-    address: company?.address ?? '',
-    city: company?.city ?? '',
-    state: company?.state ?? 'NSW',
-  });
-
-  const [profileForm, setProfileForm] = useState({
-    full_name: profile?.full_name ?? '',
-    phone: profile?.phone ?? '',
-    password: '',
-  });
-
-  const [inviteForm, setInviteForm] = useState({ email: '', role: 'user' });
-  const [stripeForm, setStripeForm] = useState({
-    publishable_key: '',
-    secret_key: '',
-    webhook_secret: '',
-  });
 
   const settingsQuery = useQuery({
     queryKey: ['company_settings'],
@@ -73,69 +81,69 @@ export default function Settings() {
     queryFn: getStripeConfigStatus,
   });
 
-  const [settingsForm, setSettingsForm] = useState({
-    allow_cross_hire: true,
-    payment_terms_days: 14,
-    bank_bsb: '',
-    bank_account_number: '',
-    bank_account_name: '',
-    default_invoice_notes: '',
-  });
+  const companyDefaults = useMemo<CompanyFormState>(
+    () => ({
+      name: company?.name ?? '',
+      abn: company?.abn ?? '',
+      phone: company?.phone ?? '',
+      email: company?.email ?? '',
+      address: company?.address ?? '',
+      city: company?.city ?? '',
+      state: company?.state ?? 'NSW',
+    }),
+    [company],
+  );
+  const [companyFormDraft, setCompanyFormDraft] = useState<CompanyFormState | null>(null);
+  const companyForm = companyFormDraft ?? companyDefaults;
+  const setCompanyForm = (updater: (state: CompanyFormState) => CompanyFormState) => {
+    setCompanyFormDraft((state) => updater(state ?? companyDefaults));
+  };
 
-  useEffect(() => {
-    if (!company) {
-      return;
-    }
-
-    setCompanyForm({
-      name: company.name ?? '',
-      abn: company.abn ?? '',
-      phone: company.phone ?? '',
-      email: company.email ?? '',
-      address: company.address ?? '',
-      city: company.city ?? '',
-      state: company.state ?? 'NSW',
-    });
-  }, [company]);
-
-  useEffect(() => {
-    if (!profile) {
-      return;
-    }
-
-    setProfileForm({
-      full_name: profile.full_name ?? '',
-      phone: profile.phone ?? '',
+  const profileDefaults = useMemo<ProfileFormState>(
+    () => ({
+      full_name: profile?.full_name ?? '',
+      phone: profile?.phone ?? '',
       password: '',
-    });
-  }, [profile]);
+    }),
+    [profile],
+  );
+  const [profileFormDraft, setProfileFormDraft] = useState<ProfileFormState | null>(null);
+  const profileForm = profileFormDraft ?? profileDefaults;
+  const setProfileForm = (updater: (state: ProfileFormState) => ProfileFormState) => {
+    setProfileFormDraft((state) => updater(state ?? profileDefaults));
+  };
 
-  useEffect(() => {
-    const settings = settingsQuery.data;
-    if (!settings) {
-      return;
-    }
+  const settingsDefaults = useMemo<SettingsFormState>(
+    () => ({
+      allow_cross_hire: settingsQuery.data?.allow_cross_hire ?? true,
+      payment_terms_days: settingsQuery.data?.payment_terms_days ?? 14,
+      bank_bsb: settingsQuery.data?.bank_bsb ?? '',
+      bank_account_number: settingsQuery.data?.bank_account_number ?? '',
+      bank_account_name: settingsQuery.data?.bank_account_name ?? '',
+      default_invoice_notes: settingsQuery.data?.default_invoice_notes ?? '',
+    }),
+    [settingsQuery.data],
+  );
+  const [settingsFormDraft, setSettingsFormDraft] = useState<SettingsFormState | null>(null);
+  const settingsForm = settingsFormDraft ?? settingsDefaults;
+  const setSettingsForm = (updater: (state: SettingsFormState) => SettingsFormState) => {
+    setSettingsFormDraft((state) => updater(state ?? settingsDefaults));
+  };
 
-    setSettingsForm({
-      allow_cross_hire: settings.allow_cross_hire,
-      payment_terms_days: settings.payment_terms_days,
-      bank_bsb: settings.bank_bsb ?? '',
-      bank_account_number: settings.bank_account_number ?? '',
-      bank_account_name: settings.bank_account_name ?? '',
-      default_invoice_notes: settings.default_invoice_notes ?? '',
-    });
-  }, [settingsQuery.data]);
+  const stripeDefaults = useMemo<StripeFormState>(
+    () => ({ publishable_key: stripeConfigQuery.data?.publishable_key ?? '' }),
+    [stripeConfigQuery.data?.publishable_key],
+  );
+  const [stripeFormDraft, setStripeFormDraft] = useState<StripeFormState | null>(null);
+  const stripeForm = stripeFormDraft ?? stripeDefaults;
+  const setStripeForm = (updater: (state: StripeFormState) => StripeFormState) => {
+    setStripeFormDraft((state) => updater(state ?? stripeDefaults));
+  };
 
-  useEffect(() => {
-    if (!stripeConfigQuery.data) {
-      return;
-    }
-
-    setStripeForm((state) => ({
-      ...state,
-      publishable_key: stripeConfigQuery.data?.publishable_key ?? '',
-    }));
-  }, [stripeConfigQuery.data]);
+  const [inviteForm, setInviteForm] = useState<{ email: string; role: TeamRole }>({
+    email: '',
+    role: 'user',
+  });
 
   const saveCompanyMutation = useMutation({
     mutationFn: async () => {
@@ -149,6 +157,7 @@ export default function Settings() {
     },
     onSuccess: async () => {
       await refreshProfile();
+      setCompanyFormDraft(null);
       toast.success('Company updated');
     },
   });
@@ -162,15 +171,15 @@ export default function Settings() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['company_settings'] });
+      setSettingsFormDraft(null);
       toast.success('Settings updated');
     },
   });
 
   const saveStripeMutation = useMutation({
-    mutationFn: () => saveStripeConfig(stripeForm),
+    mutationFn: () => saveStripeConfig({ publishable_key: stripeForm.publishable_key }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['stripe_config'] });
-      setStripeForm((state) => ({ ...state, secret_key: '', webhook_secret: '' }));
       toast.success('Stripe settings updated');
     },
     onError: (error) => {
@@ -179,8 +188,8 @@ export default function Settings() {
   });
 
   const saveTeamRoleMutation = useMutation({
-    mutationFn: ({ id, role, is_active }: { id: string; role: string; is_active: boolean }) =>
-      upsertProfile({ id, role: role as any, is_active }),
+    mutationFn: ({ id, role, is_active }: { id: string; role: TeamRole; is_active: boolean }) =>
+      upsertProfile({ id, role, is_active }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['profiles'] });
       toast.success('Team member updated');
@@ -213,12 +222,13 @@ export default function Settings() {
     onSuccess: async () => {
       setProfileForm((state) => ({ ...state, password: '' }));
       await refreshProfile();
+      setProfileFormDraft(null);
       toast.success('Profile updated');
     },
   });
 
   const teamMembers = useMemo(
-    () => (teamQuery.data ?? []).filter((member: any) => member.company_id === profile?.company_id),
+    () => (teamQuery.data ?? []).filter((member) => member.company_id === profile?.company_id),
     [teamQuery.data, profile?.company_id],
   );
 
@@ -276,7 +286,7 @@ export default function Settings() {
           <Card>
             <h3 className="text-lg font-semibold text-slate-900">Team Members</h3>
             <div className="mt-3 space-y-3">
-              {teamMembers.map((member: any) => (
+              {teamMembers.map((member) => (
                 <div key={member.id} className="grid gap-2 rounded-lg border border-slate-100 bg-slate-50 p-3 md:grid-cols-4 md:items-center">
                   <div>
                     <p className="font-medium text-slate-900">{member.full_name}</p>
@@ -284,7 +294,7 @@ export default function Settings() {
                   </div>
                   <div className="text-sm text-slate-600">{member.id === user?.id ? 'You' : member.role}</div>
                   <div>
-                    <Select value={member.role} onChange={(event) => saveTeamRoleMutation.mutate({ id: member.id, role: event.target.value, is_active: member.is_active })}>
+                    <Select value={member.role} onChange={(event) => saveTeamRoleMutation.mutate({ id: member.id, role: event.target.value as TeamRole, is_active: member.is_active })}>
                       <option value="admin">Admin</option>
                       <option value="user">User</option>
                       <option value="viewer">Viewer</option>
@@ -308,7 +318,7 @@ export default function Settings() {
             <h3 className="text-lg font-semibold text-slate-900">Invite Team Member</h3>
             <div className="mt-3 grid gap-3 md:grid-cols-3">
               <Input value={inviteForm.email} onChange={(event) => setInviteForm((state) => ({ ...state, email: event.target.value }))} placeholder="Email" />
-              <Select value={inviteForm.role} onChange={(event) => setInviteForm((state) => ({ ...state, role: event.target.value }))}>
+              <Select value={inviteForm.role} onChange={(event) => setInviteForm((state) => ({ ...state, role: event.target.value as TeamRole }))}>
                 <option value="admin">Admin</option>
                 <option value="user">User</option>
                 <option value="viewer">Viewer</option>
@@ -317,7 +327,7 @@ export default function Settings() {
             </div>
 
             <div className="mt-4 space-y-2">
-              {(invitesQuery.data ?? []).map((invite: any) => (
+              {(invitesQuery.data ?? []).map((invite: TeamInvite) => (
                 <div key={invite.id} className="flex flex-wrap items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
                   <p className="text-sm text-slate-700">{invite.email} ({invite.role})</p>
                   <div className="flex items-center gap-2">
@@ -374,40 +384,41 @@ export default function Settings() {
               Connect your company Stripe keys so customers can pay quote and invoice links online.
             </p>
 
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div className="mt-3">
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Publishable Key
+              </label>
               <Input
                 value={stripeForm.publishable_key}
                 onChange={(event) => setStripeForm((state) => ({ ...state, publishable_key: event.target.value }))}
                 placeholder="pk_live_... or pk_test_..."
               />
-              <Input
-                type="password"
-                value={stripeForm.secret_key}
-                onChange={(event) => setStripeForm((state) => ({ ...state, secret_key: event.target.value }))}
-                placeholder="sk_live_... (leave blank to keep existing)"
-              />
-              <Input
-                type="password"
-                className="md:col-span-2"
-                value={stripeForm.webhook_secret}
-                onChange={(event) => setStripeForm((state) => ({ ...state, webhook_secret: event.target.value }))}
-                placeholder="whsec_... (recommended for automatic paid updates)"
-              />
+            </div>
+
+            {/* Secret key security notice */}
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">
+              <p className="font-semibold text-amber-800">Secret key &amp; webhook secret — set via CLI only</p>
+              <p className="mt-1 text-amber-700">
+                For security, secret keys must never be stored in the database. Set them as Supabase Edge Function secrets:
+              </p>
+              <pre className="mt-2 overflow-x-auto rounded-lg bg-amber-900/10 p-3 text-xs text-amber-900">
+{`supabase secrets set STRIPE_SECRET_KEY=sk_live_...
+supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...`}
+              </pre>
+              <p className="mt-2 text-xs text-amber-600">
+                Webhook endpoint to configure in Stripe: <code className="font-mono">/functions/v1/stripe-webhook</code>
+              </p>
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
               <StatusBadge status={stripeConfigQuery.data?.configured ? 'paid' : 'draft'} />
               <span className="text-slate-500">
-                Secret key: {stripeConfigQuery.data?.has_secret_key ? 'configured' : 'missing'}
+                Secret key: {stripeConfigQuery.data?.has_secret_key ? '✓ configured' : 'not set'}
               </span>
               <span className="text-slate-500">
-                Webhook secret: {stripeConfigQuery.data?.has_webhook_secret ? 'configured' : 'missing'}
+                Webhook: {stripeConfigQuery.data?.has_webhook_secret ? '✓ configured' : 'not set'}
               </span>
             </div>
-
-            <p className="mt-2 text-xs text-slate-500">
-              Stripe webhook endpoint: <code>/functions/v1/stripe-webhook</code>
-            </p>
 
             <div className="mt-4 flex justify-end">
               <Button onClick={() => saveStripeMutation.mutate()} loading={saveStripeMutation.isPending}>
@@ -434,3 +445,4 @@ export default function Settings() {
     </div>
   );
 }
+

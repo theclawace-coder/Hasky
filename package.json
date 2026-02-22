@@ -11,7 +11,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "scrape:tvh-model-catalog": "node scripts/scrape-tvh-model-catalog.mjs",
-    "sync:tvh-model-catalog": "node scripts/scrape-tvh-model-catalog.mjs --upsert-supabase"
+    "sync:tvh-model-catalog": "node scripts/scrape-tvh-model-catalog.mjs --upsert-supabase",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report e2e/artifacts/html-report",
+    "test:e2e:matrix": "node e2e/scripts/run-matrix.mjs",
+    "e2e:auth:states": "node e2e/scripts/generate-auth-states.mjs",
+    "e2e:auth:states:basic": "node e2e/scripts/generate-auth-states.mjs --roles=basic",
+    "e2e:auth:states:admin": "node e2e/scripts/generate-auth-states.mjs --roles=admin"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -27,9 +35,11 @@
     "date-fns": "^4.1.0",
     "framer-motion": "^12.34.2",
     "lucide-react": "^0.564.0",
+    "mapbox-gl": "^3.12.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.71.1",
+    "react-map-gl": "^8.1.0",
     "react-router-dom": "^7.13.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.1",
@@ -38,6 +48,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

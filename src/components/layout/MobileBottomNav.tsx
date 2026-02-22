@@ -1,12 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Truck, CalendarRange, FileText, Receipt } from 'lucide-react';
+import { LayoutDashboard, Truck, CalendarRange, Map, Receipt } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 const mobileNav = [
   { to: '/dashboard', label: 'Home',     icon: LayoutDashboard, activeColor: 'text-blue-600',   activeBg: 'bg-blue-100/80',   glow: 'rgba(59,130,246,0.25)'  },
   { to: '/fleet',     label: 'Fleet',    icon: Truck,           activeColor: 'text-amber-600',  activeBg: 'bg-amber-100/80',  glow: 'rgba(245,158,11,0.25)'  },
   { to: '/bookings',  label: 'Jobs',     icon: CalendarRange,   activeColor: 'text-violet-600', activeBg: 'bg-violet-100/80', glow: 'rgba(139,92,246,0.25)'  },
-  { to: '/quotes',    label: 'Quotes',   icon: FileText,        activeColor: 'text-sky-600',    activeBg: 'bg-sky-100/80',    glow: 'rgba(14,165,233,0.25)'  },
+  { to: '/map',       label: 'Map',      icon: Map,             activeColor: 'text-cyan-600',   activeBg: 'bg-cyan-100/80',   glow: 'rgba(6,182,212,0.25)'   },
   { to: '/invoices',  label: 'Invoices', icon: Receipt,         activeColor: 'text-orange-600', activeBg: 'bg-orange-100/80', glow: 'rgba(249,115,22,0.25)'  },
 ];
 

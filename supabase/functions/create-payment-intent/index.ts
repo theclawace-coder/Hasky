@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
       const numberField = documentType === 'quote' ? 'quote_number' : 'invoice_number';
       const selectFields = documentType === 'quote'
         ? 'id, company_id, total, status, share_token, quote_number'
-        : 'id, company_id, total, status, share_token, invoice_number';
+        : 'id, company_id, total, paid_amount, status, share_token, invoice_number';
       const payableStatuses = documentType === 'quote'
         ? ['draft', 'sent', 'accepted']
         : ['draft', 'sent', 'overdue'];
@@ -103,9 +103,14 @@ Deno.serve(async (req) => {
         return jsonResponse(400, { error: 'This document is not payable' });
       }
 
-      const amountCents = Math.round(Number(row.total ?? 0) * 100);
+      // For invoices, charge only the outstanding balance (total minus any prior payments).
+      const paidSoFar = documentType === 'invoice'
+        ? Number((row as Record<string, unknown>).paid_amount ?? 0)
+        : 0;
+      const outstandingAmount = Math.max(Number(row.total ?? 0) - paidSoFar, 0);
+      const amountCents = Math.round(outstandingAmount * 100);
       if (!Number.isFinite(amountCents) || amountCents <= 0) {
-        return jsonResponse(400, { error: 'Invalid payment amount' });
+        return jsonResponse(400, { error: 'No outstanding balance on this document' });
       }
 
       const stripeConfig = await getStripeCredentialsForCompany(adminClient, row.company_id);
@@ -147,7 +152,7 @@ Deno.serve(async (req) => {
 
     const { data: invoice, error: invoiceError } = await userClient
       .from('invoices')
-      .select('id, company_id, total, status, invoice_number')
+      .select('id, company_id, total, paid_amount, status, invoice_number')
       .eq('id', invoiceId)
       .maybeSingle();
 
@@ -159,9 +164,11 @@ Deno.serve(async (req) => {
       return jsonResponse(400, { error: 'Invoice is not payable' });
     }
 
-    const amountCents = Math.round(Number(invoice.total ?? 0) * 100);
+    // Charge only the outstanding balance so partial payers are never double-charged.
+    const outstandingAmount = Math.max(Number(invoice.total ?? 0) - Number(invoice.paid_amount ?? 0), 0);
+    const amountCents = Math.round(outstandingAmount * 100);
     if (!Number.isFinite(amountCents) || amountCents <= 0) {
-      return jsonResponse(400, { error: 'Invalid payment amount' });
+      return jsonResponse(400, { error: 'No outstanding balance on this invoice' });
     }
 
     const stripeConfig = await getStripeCredentialsForCompany(adminClient, invoice.company_id);

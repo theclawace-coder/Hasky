@@ -1,5 +1,5 @@
 ﻿import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,6 +16,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { formatCurrency, formatDate } from '../../lib/utils';
+import type { Machine } from '../../types';
 
 export default function MachineDetail() {
   const { id } = useParams<{ id: string }>();
@@ -44,7 +45,7 @@ export default function MachineDetail() {
   });
 
   const saveMachineMutation = useMutation({
-    mutationFn: (values: Partial<MachineFormValues>) => upsertMachine(values as any),
+    mutationFn: (values: Partial<Machine>) => upsertMachine(values),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['machine', id] });
       void queryClient.invalidateQueries({ queryKey: ['machines'] });
@@ -85,11 +86,12 @@ export default function MachineDetail() {
     }
     try {
       const { photo_url, ...payload } = values;
-      await saveMachineMutation.mutateAsync({
+      const machinePayload: Partial<Machine> = {
         ...machine,
         ...payload,
         photo_urls: photo_url ? [photo_url] : null,
-      } as any);
+      };
+      await saveMachineMutation.mutateAsync(machinePayload);
       toast.success('Machine updated');
       setEditOpen(false);
     } catch (error) {
@@ -124,6 +126,7 @@ export default function MachineDetail() {
     () => [
       { label: 'Hourly', value: machine?.hourly_rate },
       { label: 'Daily', value: machine?.daily_rate },
+      { label: 'Weekend', value: machine?.weekend_rate },
       { label: 'Weekly', value: machine?.weekly_rate },
       { label: 'Monthly', value: machine?.monthly_rate },
     ],
@@ -206,11 +209,11 @@ export default function MachineDetail() {
           <div className="space-y-3">
             {(bookingHistoryQuery.data ?? []).length ? (
               (bookingHistoryQuery.data ?? []).map((booking) => (
-                <a key={booking.id} href={`/bookings/${booking.id}`} className="block rounded-lg border border-slate-100 bg-slate-50 p-3">
+                <Link key={booking.id} to={`/bookings/${booking.id}`} className="block rounded-lg border border-slate-100 bg-slate-50 p-3">
                   <p className="font-medium text-slate-900">{booking.customers?.name}</p>
                   <p className="text-sm text-slate-600">{formatDate(booking.start_date)} - {formatDate(booking.end_date)}</p>
                   <StatusBadge status={booking.status} />
-                </a>
+                </Link>
               ))
             ) : (
               <p className="text-sm text-slate-500">No bookings yet.</p>

@@ -1,11 +1,13 @@
-import { useForm } from 'react-hook-form';
+import { useEffect, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ArrowRight, Building2, ChevronLeft, CreditCard, FileText } from 'lucide-react';
 import { getCompanySettings, upsertCompanySettings } from '../../../services/api';
-import { useAuthContext } from '../../../contexts/AuthContext';
+import { useAuthContext } from '../../../contexts/auth-context';
+import type { BookingChargeTemplate } from '../../../types';
 
 const schema = z.object({
   payment_terms_days: z.number().int().min(1).max(120),
@@ -23,6 +25,11 @@ interface Props {
 }
 
 const TERM_OPTIONS = [7, 14, 30, 60] as const;
+const CHARGE_PRESETS: BookingChargeTemplate[] = [
+  { description: 'Delivery', quantity: 1, unit_price: 120 },
+  { description: 'Pickup', quantity: 1, unit_price: 120 },
+  { description: 'Attachment Hire', quantity: 1, unit_price: 85 },
+];
 
 const glassInput =
   'w-full rounded-xl border border-slate-200/80 bg-white/60 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 backdrop-blur-sm transition-all focus:border-violet-400/60 focus:outline-none focus:ring-2 focus:ring-violet-400/20';
@@ -37,6 +44,7 @@ const cardStyle = {
 
 export function BusinessStep({ onNext, onBack }: Props) {
   const { company } = useAuthContext();
+  const [defaultCharges, setDefaultCharges] = useState<BookingChargeTemplate[]>([]);
 
   const { data: existingSettings } = useQuery({
     queryKey: ['company-settings'],
@@ -44,7 +52,7 @@ export function BusinessStep({ onNext, onBack }: Props) {
     staleTime: 0,
   });
 
-  const { register, handleSubmit, watch, setValue } = useForm<FormValues>({
+  const { register, handleSubmit, control, setValue } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       payment_terms_days: 14,
@@ -55,7 +63,19 @@ export function BusinessStep({ onNext, onBack }: Props) {
     },
   });
 
-  const terms = watch('payment_terms_days');
+  useEffect(() => {
+    if (!existingSettings) {
+      return;
+    }
+    setValue('payment_terms_days', existingSettings.payment_terms_days ?? 14);
+    setValue('bank_account_name', existingSettings.bank_account_name ?? '');
+    setValue('bank_bsb', existingSettings.bank_bsb ?? '');
+    setValue('bank_account_number', existingSettings.bank_account_number ?? '');
+    setValue('default_invoice_notes', existingSettings.default_invoice_notes ?? 'Thank you for your business.');
+    setDefaultCharges(existingSettings.default_booking_charges ?? []);
+  }, [existingSettings, setValue]);
+
+  const terms = useWatch({ control, name: 'payment_terms_days' }) ?? 14;
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
@@ -66,11 +86,12 @@ export function BusinessStep({ onNext, onBack }: Props) {
         bank_bsb: values.bank_bsb ?? null,
         bank_account_number: values.bank_account_number ?? null,
         default_invoice_notes: values.default_invoice_notes ?? null,
+        default_booking_charges: defaultCharges,
         allow_cross_hire: existingSettings?.allow_cross_hire ?? false,
       }),
     onSuccess: () => onNext(),
     onError: () => {
-      toast.error('Could not save settings — you can update them later in Settings');
+      toast.error('Could not save settings - you can update them later in Settings');
       onNext();
     },
   });
@@ -78,7 +99,6 @@ export function BusinessStep({ onNext, onBack }: Props) {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-24">
       <div className="w-full max-w-lg">
-        {/* Header */}
         <div className="mb-8 text-center">
           <div
             className="mb-4 inline-flex size-14 items-center justify-center rounded-2xl"
@@ -94,8 +114,7 @@ export function BusinessStep({ onNext, onBack }: Props) {
 
         <div className="rounded-3xl p-8" style={cardStyle}>
           <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-7">
-            {/* Business info pill */}
-            {company && (
+            {company ? (
               <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3">
                 <div
                   className="flex size-9 shrink-0 items-center justify-center rounded-xl text-sm font-black text-white"
@@ -105,17 +124,16 @@ export function BusinessStep({ onNext, onBack }: Props) {
                 </div>
                 <div>
                   <div className="text-sm font-semibold text-slate-800">{company.name}</div>
-                  {company.abn && (
+                  {company.abn ? (
                     <div className="text-xs text-slate-400">ABN {company.abn}</div>
-                  )}
+                  ) : null}
                 </div>
                 <span className="ml-auto rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-semibold text-emerald-600">
                   Active
                 </span>
               </div>
-            )}
+            ) : null}
 
-            {/* Payment terms */}
             <div>
               <label className="mb-3 block text-sm font-medium text-slate-600">
                 Payment Terms
@@ -143,7 +161,6 @@ export function BusinessStep({ onNext, onBack }: Props) {
               </p>
             </div>
 
-            {/* Bank details */}
             <div>
               <label className="mb-3 flex items-center gap-1.5 text-sm font-medium text-slate-600">
                 <CreditCard className="size-4 text-cyan-500" />
@@ -170,7 +187,6 @@ export function BusinessStep({ onNext, onBack }: Props) {
               </div>
             </div>
 
-            {/* Invoice notes */}
             <div>
               <label className="mb-3 flex items-center gap-1.5 text-sm font-medium text-slate-600">
                 <FileText className="size-4 text-violet-500" />
@@ -180,14 +196,49 @@ export function BusinessStep({ onNext, onBack }: Props) {
                 {...register('default_invoice_notes')}
                 rows={2}
                 placeholder="Thank you for your business."
-                className={glassInput + ' resize-none'}
+                className={`${glassInput} resize-none`}
               />
               <p className="mt-1.5 text-xs text-slate-400">
                 Appears at the bottom of every invoice
               </p>
             </div>
 
-            {/* Actions */}
+            <div>
+              <label className="mb-3 block text-sm font-medium text-slate-600">
+                Default Job Extras
+              </label>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {CHARGE_PRESETS.map((preset) => {
+                  const active = defaultCharges.some((item) => item.description === preset.description);
+                  return (
+                    <button
+                      key={preset.description}
+                      type="button"
+                      onClick={() =>
+                        setDefaultCharges((state) =>
+                          active
+                            ? state.filter((item) => item.description !== preset.description)
+                            : [...state, preset],
+                        )
+                      }
+                      className={[
+                        'rounded-xl border px-3 py-2 text-left text-xs transition-colors',
+                        active
+                          ? 'border-violet-300 bg-violet-50 text-violet-700'
+                          : 'border-slate-200 bg-white/60 text-slate-600',
+                      ].join(' ')}
+                    >
+                      <p className="font-semibold">{preset.description}</p>
+                      <p className="mt-0.5 text-[11px]">${preset.unit_price.toFixed(2)} default</p>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-xs text-slate-400">
+                Selected extras will prefill new jobs. You can edit amounts per job.
+              </p>
+            </div>
+
             <div className="flex items-center justify-between pt-1">
               <button
                 type="button"
@@ -207,10 +258,10 @@ export function BusinessStep({ onNext, onBack }: Props) {
                   boxShadow: '0 0 16px rgba(124,58,237,0.28)',
                 }}
               >
-                {mutation.isPending && (
+                {mutation.isPending ? (
                   <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                )}
-                Save & Continue
+                ) : null}
+                Save and Continue
                 <ArrowRight className="size-4" />
               </button>
             </div>

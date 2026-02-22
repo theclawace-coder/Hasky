@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { OnboardingBackground } from '../../components/onboarding/OnboardingBackground';
 import { StepIndicator } from '../../components/onboarding/StepIndicator';
 import { WelcomeStep } from '../../components/onboarding/steps/WelcomeStep';
@@ -8,34 +9,36 @@ import { FleetStep } from '../../components/onboarding/steps/FleetStep';
 import { PaymentsStep } from '../../components/onboarding/steps/PaymentsStep';
 import { TeamStep } from '../../components/onboarding/steps/TeamStep';
 import { CompleteStep } from '../../components/onboarding/steps/CompleteStep';
-import { useAuthContext } from '../../contexts/AuthContext';
+import { useAuthContext } from '../../contexts/auth-context';
 import { createOAuthUserSetup } from '../../services/api';
 
 // Steps: 0=Welcome, 1=Business, 2=Fleet, 3=Payments, 4=Team, 5=Complete
-const INDICATOR_STEPS = 4; // steps 1–4 shown in the progress dots
+const INDICATOR_STEPS = 4; // steps 1â€“4 shown in the progress dots
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState<'fwd' | 'back'>('fwd');
   const [fleetCount, setFleetCount] = useState(0);
   const [inviteCount, setInviteCount] = useState(0);
-  const [settingUp, setSettingUp] = useState(false);
   const navigate = useNavigate();
   const { user, profile, isLoading, refreshProfile } = useAuthContext();
 
-  // Google OAuth users land here with a session but no profile/company yet.
-  useEffect(() => {
-    if (isLoading || profile) return;
-    if (!user) return;
-
-    const fullName: string =
-      user.user_metadata?.full_name ?? user.user_metadata?.name ?? '';
-
-    setSettingUp(true);
-    createOAuthUserSetup(user.id, fullName)
-      .then(() => refreshProfile())
-      .finally(() => setSettingUp(false));
-  }, [isLoading, profile, user, refreshProfile]);
+  const shouldSetupOAuth = Boolean(!isLoading && user && !profile);
+  const oauthSetupQuery = useQuery({
+    queryKey: ['oauth_setup', user?.id],
+    enabled: shouldSetupOAuth,
+    retry: false,
+    staleTime: 0,
+    queryFn: async () => {
+      if (!user) {
+        return;
+      }
+      const fullName: string = user.user_metadata?.full_name ?? user.user_metadata?.name ?? '';
+      await createOAuthUserSetup(user.id, fullName);
+      await refreshProfile();
+    },
+  });
+  const settingUp = oauthSetupQuery.isLoading;
 
   const go = (next: number) => {
     setDirection(next > step ? 'fwd' : 'back');
@@ -61,14 +64,14 @@ export default function OnboardingPage() {
     <div className="relative min-h-screen overflow-hidden" style={{ background: 'var(--gradient-bg)', backgroundAttachment: 'fixed' }}>
       <OnboardingBackground />
 
-      {/* Step indicator — visible on steps 1–4 */}
+      {/* Step indicator â€” visible on steps 1â€“4 */}
       {step > 0 && step < 5 && (
         <div className="absolute left-1/2 top-8 z-20 -translate-x-1/2">
           <StepIndicator current={step - 1} total={INDICATOR_STEPS} />
         </div>
       )}
 
-      {/* Skip button — visible on steps 1–4 */}
+      {/* Skip button â€” visible on steps 1â€“4 */}
       {step > 0 && step < 5 && (
         <button
           onClick={skip}
@@ -93,6 +96,7 @@ export default function OnboardingPage() {
 
         {step === 2 && (
           <FleetStep
+            companyId={profile?.company_id ?? null}
             onNext={(count) => {
               setFleetCount(count);
               go(3);
@@ -122,3 +126,4 @@ export default function OnboardingPage() {
     </div>
   );
 }
+

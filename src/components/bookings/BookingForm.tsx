@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { RATE_TYPES } from '../../lib/constants';
+import { BOOKING_STATUSES, DEPOSIT_TYPES, PAYMENT_PLANS, RATE_TYPES } from '../../lib/constants';
 import { AddressAutocomplete } from '../ui/AddressAutocomplete';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
@@ -18,13 +18,19 @@ const schema = z.object({
   machine_id: z.string().min(1, 'Machine is required'),
   customer_id: z.string().min(1, 'Customer is required'),
   start_date: z.string().min(1, 'Start date is required'),
-  end_date: z.string().optional(),
-  rate_type: z.string().optional(),
+  end_date: z.string().min(1, 'End date is required'),
+  rate_type: z.enum(RATE_TYPES).optional(),
   rate_amount: z.coerce.number().min(0),
   total_amount: z.coerce.number().optional(),
   delivery_address: z.string().optional(),
+  delivery_lat: z.coerce.number().optional(),
+  delivery_lng: z.coerce.number().optional(),
+  payment_plan: z.enum(PAYMENT_PLANS).default('on_completion'),
+  deposit_type: z.enum(DEPOSIT_TYPES).optional(),
+  deposit_value: z.coerce.number().optional(),
+  deposit_amount: z.coerce.number().optional(),
   notes: z.string().optional(),
-  status: z.string().default('quote'),
+  status: z.enum(BOOKING_STATUSES).default('quote'),
 });
 
 export type BookingFormValues = z.infer<typeof schema>;
@@ -61,6 +67,12 @@ export function BookingForm({
       rate_amount: defaultValues?.rate_amount ?? 0,
       total_amount: defaultValues?.total_amount ?? undefined,
       delivery_address: defaultValues?.delivery_address ?? '',
+      delivery_lat: defaultValues?.delivery_lat ?? undefined,
+      delivery_lng: defaultValues?.delivery_lng ?? undefined,
+      payment_plan: defaultValues?.payment_plan ?? 'on_completion',
+      deposit_type: defaultValues?.deposit_type ?? undefined,
+      deposit_value: defaultValues?.deposit_value ?? undefined,
+      deposit_amount: defaultValues?.deposit_amount ?? undefined,
       notes: defaultValues?.notes ?? '',
       status: defaultValues?.status ?? 'quote',
     }),
@@ -71,20 +83,20 @@ export function BookingForm({
     control,
     register,
     handleSubmit,
-    watch,
+    getValues,
     setValue,
     formState: { errors },
-  } = useForm<any>({
-    resolver: zodResolver(schema) as any,
+  } = useForm<BookingFormValues>({
+    resolver: zodResolver(schema) as Resolver<BookingFormValues>,
     values,
   });
 
-  const machineId = watch('machine_id');
+  const machineId = useWatch({ control, name: 'machine_id' }) ?? '';
 
   const onMachineChange = (value: string) => {
     setValue('machine_id', value, { shouldValidate: true, shouldDirty: true });
     const machine = machines.find((item) => item.id === value);
-    const rateType = watch('rate_type') || 'daily';
+    const rateType = getValues('rate_type') || 'daily';
     if (!machine) {
       return;
     }
@@ -119,7 +131,7 @@ export function BookingForm({
     <>
       <form
         className="grid gap-4 md:grid-cols-2"
-        onSubmit={handleSubmit((formValues) => onSubmit(formValues as BookingFormValues))}
+        onSubmit={handleSubmit((formValues) => onSubmit(formValues))}
       >
         <div>
           <div className="mb-1 flex items-center justify-between gap-2">
@@ -165,8 +177,8 @@ export function BookingForm({
           <DatePicker {...register('start_date')} error={errors.start_date?.message} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">End date</label>
-          <DatePicker {...register('end_date')} />
+          <label className="mb-1 block text-sm font-medium text-slate-700">End date <span className="text-red-500">*</span></label>
+          <DatePicker {...register('end_date')} error={errors.end_date?.message} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Rate type</label>
@@ -191,6 +203,11 @@ export function BookingForm({
               <AddressAutocomplete
                 value={field.value ?? ''}
                 onChange={field.onChange}
+                onSelect={(suggestion) => {
+                  field.onChange(suggestion.fullAddress);
+                  setValue('delivery_lat', suggestion.latitude, { shouldDirty: true });
+                  setValue('delivery_lng', suggestion.longitude, { shouldDirty: true });
+                }}
                 placeholder="Search delivery address or type manually"
               />
             )}

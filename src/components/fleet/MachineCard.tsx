@@ -7,6 +7,7 @@ import type { Machine } from '../../types';
 
 interface MachineCardProps {
   machine: Machine;
+  statusOverride?: string;
 }
 
 const STATUS_STRIP: Record<string, string> = {
@@ -17,10 +18,11 @@ const STATUS_STRIP: Record<string, string> = {
   decommissioned:'bg-slate-400',
 };
 
-export function MachineCard({ machine }: MachineCardProps) {
+export function MachineCard({ machine, statusOverride }: MachineCardProps) {
   const photo = machine.photo_urls?.[0];
-  const isAvailable = machine.status === 'available';
-  const strip = STATUS_STRIP[machine.status] ?? 'bg-slate-400';
+  const displayStatus = statusOverride ?? machine.status;
+  const isAvailable = displayStatus === 'available';
+  const strip = STATUS_STRIP[displayStatus] ?? 'bg-slate-400';
 
   return (
     <Link to={`/fleet/${machine.id}`} className="block">
@@ -46,7 +48,7 @@ export function MachineCard({ machine }: MachineCardProps) {
         <div className="flex flex-1 flex-col gap-1.5 p-4">
           <div className="flex items-start justify-between gap-2">
             <h3 className="font-bold leading-tight text-slate-900">{machine.name}</h3>
-            <StatusBadge status={machine.status} />
+            <StatusBadge status={displayStatus} />
           </div>
 
           <p className="text-xs text-slate-500">{machine.machine_categories?.name ?? 'Uncategorised'}</p>

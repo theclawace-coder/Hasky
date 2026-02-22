@@ -2,9 +2,11 @@
   AU_STATES,
   BOOKING_STATUSES,
   DEAL_STATUSES,
+  DEPOSIT_TYPES,
   EXPENSE_CATEGORIES,
   INVOICE_STATUSES,
   MACHINE_STATUSES,
+  PAYMENT_PLANS,
   QUOTE_STATUSES,
   RATE_TYPES,
 } from '../lib/constants';
@@ -15,6 +17,8 @@ export type AUState = (typeof AU_STATES)[number] | string;
 export type MachineStatus = (typeof MACHINE_STATUSES)[number];
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 export type RateType = (typeof RATE_TYPES)[number];
+export type PaymentPlan = (typeof PAYMENT_PLANS)[number];
+export type DepositType = (typeof DEPOSIT_TYPES)[number];
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
 export type DealStatus = (typeof DEAL_STATUSES)[number];
@@ -76,6 +80,7 @@ export interface Machine {
   status: MachineStatus;
   hourly_rate: number | null;
   daily_rate: number | null;
+  weekend_rate: number | null;
   weekly_rate: number | null;
   monthly_rate: number | null;
   photo_urls: string[] | null;
@@ -83,6 +88,8 @@ export interface Machine {
   cross_hire_available: boolean;
   notes: string | null;
   location: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
   created_at: string;
   updated_at: string;
   machine_categories?: MachineCategory | null;
@@ -111,13 +118,25 @@ export interface Booking {
   machine_id: UUID;
   customer_id: UUID;
   quote_id: UUID | null;
+  booking_number: string | null;
   status: BookingStatus;
   start_date: string;
-  end_date: string | null;
+  end_date: string;
   rate_type: RateType | null;
   rate_amount: number;
+  hire_subtotal: number | null;
+  extras_subtotal: number;
   total_amount: number | null;
   delivery_address: string | null;
+  delivery_lat: number | null;
+  delivery_lng: number | null;
+  payment_plan: PaymentPlan;
+  deposit_type: DepositType | null;
+  deposit_value: number | null;
+  deposit_amount: number;
+  deposit_paid_amount: number;
+  deposit_paid_date: string | null;
+  paid_in_full_date: string | null;
   notes: string | null;
   is_cross_hire: boolean;
   cross_hire_deal_id: UUID | null;
@@ -126,6 +145,22 @@ export interface Booking {
   updated_at: string;
   machines?: Machine;
   customers?: Customer;
+}
+
+export interface BookingChargeItem {
+  id: UUID;
+  booking_id: UUID;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  created_at: string;
+}
+
+export interface BookingChargeTemplate {
+  description: string;
+  quantity: number;
+  unit_price: number;
 }
 
 export interface Invoice {
@@ -137,6 +172,8 @@ export interface Invoice {
   subtotal: number;
   gst: number;
   total: number;
+  /** Running total of payments received. Added by migration 010. */
+  paid_amount: number;
   status: InvoiceStatus;
   issue_date: string;
   due_date: string;
@@ -209,6 +246,8 @@ export interface Quote {
   status: QuoteStatus;
   issue_date: string;
   expiry_date: string | null;
+  hire_start_date: string | null;
+  hire_end_date: string | null;
   subtotal: number;
   gst: number;
   total: number;
@@ -242,6 +281,7 @@ export interface CompanySettings {
   bank_account_number: string | null;
   bank_account_name: string | null;
   default_invoice_notes: string | null;
+  default_booking_charges: BookingChargeTemplate[];
   created_at: string;
   updated_at: string;
 }
@@ -280,6 +320,8 @@ export interface Expense {
   vendor: string | null;
   notes: string | null;
   receipt_url: string | null;
+  booking_id: UUID | null;
+  machine_id: UUID | null;
   created_by: UUID | null;
   created_at: string;
   updated_at: string;

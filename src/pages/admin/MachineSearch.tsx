@@ -12,6 +12,7 @@ import { Card } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { formatCurrency } from '../../lib/utils';
+import type { CrossHireDeal } from '../../types';
 
 export default function MachineSearch() {
   const [filters, setFilters] = useState({
@@ -53,11 +54,12 @@ export default function MachineSearch() {
 
   const createDeal = async (values: DealFormValues) => {
     try {
-      await saveDealMutation.mutateAsync({
+      const payload: Partial<CrossHireDeal> = {
         ...values,
         machine_id: selectedMachine?.id ?? null,
         supplier_company_id: selectedMachine?.company_id ?? null,
-      } as any);
+      };
+      await saveDealMutation.mutateAsync(payload);
       toast.success('Deal created');
       setOpen(false);
       setSelectedMachineId(null);

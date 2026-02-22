@@ -109,9 +109,10 @@ Deno.serve(async (req) => {
       }
 
       const stripeConfig = await getStripePublicConfig(adminClient, invoice.company_id);
+      const invoiceOutstanding = Math.max(Number(invoice.total ?? 0) - Number(invoice.paid_amount ?? 0), 0);
       const canPayOnline =
         stripeConfig.configured &&
-        Number(invoice.total ?? 0) > 0 &&
+        invoiceOutstanding > 0 &&
         ['draft', 'sent', 'overdue'].includes(invoice.status);
       const shareUrl = `${getAppBaseUrl()}/public/invoice/${token}`;
 

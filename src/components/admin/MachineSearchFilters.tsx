@@ -1,6 +1,7 @@
-﻿import { Input } from '../ui/Input';
-import { Select } from '../ui/Select';
+import { AddressAutocomplete } from '../ui/AddressAutocomplete';
 import { DatePicker } from '../ui/DatePicker';
+import { Input } from '../ui/Input';
+import { Select } from '../ui/Select';
 import type { Company, MachineCategory } from '../../types';
 
 interface MachineSearchFiltersProps {
@@ -26,7 +27,12 @@ export function MachineSearchFilters({ categories, companies, values, onChange }
           <option key={category.id} value={category.id}>{category.name}</option>
         ))}
       </Select>
-      <Input placeholder="Location / city" value={values.location} onChange={(event) => onChange({ location: event.target.value })} />
+      <AddressAutocomplete
+        value={values.location}
+        onChange={(value) => onChange({ location: value })}
+        onSelect={(suggestion) => onChange({ location: suggestion.fullAddress })}
+        placeholder="Location / city"
+      />
       <Select value={values.companyId} onChange={(event) => onChange({ companyId: event.target.value })}>
         <option value="">All companies</option>
         {companies.map((company) => (

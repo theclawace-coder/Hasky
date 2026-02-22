@@ -1,13 +1,14 @@
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Check } from 'lucide-react';
-import { LandingLayout, ctaBtnClass, ctaBtnStyle } from '../../components/landing/LandingLayout';
+import { LandingLayout } from '../../components/landing/LandingLayout';
+import { ctaBtnClass, ctaBtnStyle } from '../../components/landing/ctaStyles';
 
 const everything = [
   'Fleet management for unlimited machines',
   'Job scheduling & 4-step booking wizard',
   'Conflict detection & availability tracking',
-  'Full customer CRM — unlimited contacts',
+  'Full customer CRM â€” unlimited contacts',
   'Professional quotes with PDF export',
   'Public quote/invoice sharing links',
   'Online quote acceptance by customers',
@@ -45,16 +46,16 @@ const faqs = [
   },
   {
     q: 'What about Stripe payment fees?',
-    a: 'Card payments are processed through Stripe. Stripe charges their standard processing fee (typically ~1.75% + 30¢ for Australian cards). Hasky charges nothing on top.',
+    a: 'Card payments are processed through Stripe. Stripe charges their standard processing fee (typically ~1.75% + 30Â¢ for Australian cards). Hasky charges nothing on top.',
   },
 ];
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
 };
 
-const stagger = {
+const stagger: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.07 } },
 };
@@ -62,7 +63,7 @@ const stagger = {
 export default function PricingPage() {
   return (
     <LandingLayout>
-      {/* ── Hero ──────────────────────────────────────────────────────── */}
+      {/* â”€â”€ Hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="relative overflow-hidden px-6 pb-20 pt-24 text-center lg:px-12 lg:pt-32">
         <motion.div
           className="relative mx-auto max-w-3xl"
@@ -110,14 +111,14 @@ export default function PricingPage() {
               className={ctaBtnClass}
               style={{ ...ctaBtnStyle, fontSize: '1rem', padding: '0.875rem 2.5rem', borderRadius: '1rem' }}
             >
-              Get started — it's free →
+              Get started â€” it's free â†’
             </Link>
             <p className="mt-4 text-sm text-slate-400">No credit card required. No expiry. Ever.</p>
           </motion.div>
         </motion.div>
       </section>
 
-      {/* ── Everything included card ───────────────────────────────── */}
+      {/* â”€â”€ Everything included card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 py-20 lg:px-12">
         <div className="mx-auto max-w-4xl">
           <motion.div
@@ -218,7 +219,7 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* ── Why free section ─────────────────────────────────────────── */}
+      {/* â”€â”€ Why free section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 pb-20 lg:px-12">
         <motion.div
           className="mx-auto max-w-4xl"
@@ -239,18 +240,18 @@ export default function PricingPage() {
           </h2>
           <p className="mb-5 max-w-2xl text-lg text-slate-500">
             Most CRM and hire management software charges between $150 and $400 per month. That's
-            money straight out of your pocket — for software that often wasn't even built with
+            money straight out of your pocket â€” for software that often wasn't even built with
             Australian machinery hire in mind.
           </p>
           <p className="max-w-2xl text-lg text-slate-500">
             Hasky is built specifically for Australian hire operators. It's free because we believe
-            every tradie should have access to professional tools — not just the big operators who
+            every tradie should have access to professional tools â€” not just the big operators who
             can afford a monthly subscription.
           </p>
         </motion.div>
       </section>
 
-      {/* ── FAQ ──────────────────────────────────────────────────────── */}
+      {/* â”€â”€ FAQ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 py-20 lg:px-12">
         <div className="mx-auto max-w-3xl">
           <motion.div
@@ -293,7 +294,7 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* ── Final CTA ────────────────────────────────────────────────── */}
+      {/* â”€â”€ Final CTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 py-24 text-center lg:px-12">
         <motion.div
           className="relative mx-auto max-w-xl overflow-hidden rounded-3xl px-8 py-14"
@@ -321,10 +322,12 @@ export default function PricingPage() {
             className={ctaBtnClass}
             style={{ ...ctaBtnStyle, fontSize: '1rem', padding: '0.875rem 2.5rem', borderRadius: '1rem' }}
           >
-            Create your free account →
+            Create your free account â†’
           </Link>
         </motion.div>
       </section>
     </LandingLayout>
   );
 }
+
+

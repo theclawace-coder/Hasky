@@ -1,19 +1,37 @@
-import { useState, type PropsWithChildren } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState, useCallback, type PropsWithChildren } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { MobileBottomNav } from './MobileBottomNav';
 import { AppGuide } from '../guide/AppGuide';
+import { HelpWiki } from '../wiki/HelpWiki';
 import { useUiStore } from '../../store/uiStore';
 import { cn } from '../../lib/utils';
+import type { GuideStep } from '../guide/guideSteps';
+import { PAGE_TOUR_MAP } from '../guide/pageGuides';
 
 const easing = [0.25, 0.46, 0.45, 0.94] as const;
 
 export function Layout({ children }: PropsWithChildren) {
   const { sidebarCollapsed } = useUiStore();
   const [guideOpen, setGuideOpen] = useState(false);
+  const [guideSteps, setGuideSteps] = useState<GuideStep[] | undefined>(undefined);
+  const [wikiOpen, setWikiOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const launchTour = useCallback((steps?: GuideStep[], path?: string) => {
+    setGuideSteps(steps);
+    if (path && location.pathname !== path) {
+      navigate(path);
+    }
+    setGuideOpen(true);
+  }, [location.pathname, navigate]);
+
+  // Derive tour steps for whichever top-level route is active
+  const pageKey = `/${location.pathname.split('/').filter(Boolean)[0] ?? 'dashboard'}`;
+  const currentPageTour = PAGE_TOUR_MAP[pageKey];
 
   return (
     <div className="relative min-h-screen">
@@ -33,10 +51,14 @@ export function Layout({ children }: PropsWithChildren) {
         />
       </div>
 
-      <Sidebar />
+      <Sidebar onHelpClick={() => setWikiOpen(true)} />
 
       <div className={cn('transition-all duration-300 lg:pl-64', sidebarCollapsed && 'lg:pl-[72px]')}>
-        <TopBar onHelpClick={() => setGuideOpen(true)} />
+        <TopBar
+          onTourClick={() => launchTour()}
+          onWikiClick={() => setWikiOpen(true)}
+          onPageTourClick={currentPageTour ? () => launchTour(currentPageTour) : undefined}
+        />
 
         {/* ── Page transition wrapper ─────────────────────────── */}
         {/* pb-24 on mobile leaves room for the bottom nav */}
@@ -55,7 +77,16 @@ export function Layout({ children }: PropsWithChildren) {
       </div>
 
       <MobileBottomNav />
-      <AppGuide open={guideOpen} onClose={() => setGuideOpen(false)} />
+      <AppGuide
+        open={guideOpen}
+        onClose={() => { setGuideOpen(false); setGuideSteps(undefined); }}
+        steps={guideSteps}
+      />
+      <HelpWiki
+        open={wikiOpen}
+        onClose={() => setWikiOpen(false)}
+        onLaunchTour={(steps, path) => { setWikiOpen(false); launchTour(steps, path); }}
+      />
     </div>
   );
 }

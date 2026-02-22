@@ -1,8 +1,6 @@
-const FALLBACK_MAPBOX_ACCESS_TOKEN =
-  '';
-
-export const MAPBOX_ACCESS_TOKEN =
-  (import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string | undefined) || FALLBACK_MAPBOX_ACCESS_TOKEN;
+export const MAPBOX_ACCESS_TOKEN = String(
+  (import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string | undefined) ?? '',
+).trim();
 
 export interface MapboxAddressSuggestion {
   id: string;
@@ -11,6 +9,8 @@ export interface MapboxAddressSuggestion {
   state?: string;
   stateCode?: string;
   country?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface MapboxContextEntry {
@@ -23,6 +23,7 @@ interface MapboxFeature {
   id: string;
   place_name?: string;
   context?: MapboxContextEntry[];
+  center?: [number, number];
 }
 
 interface MapboxResponse {
@@ -58,13 +59,21 @@ export async function searchMapboxAddresses(
     autocomplete: 'true',
     limit: '6',
     language: 'en',
-    types: 'address,street,place,postcode,locality,neighborhood',
+    // "street" is not a valid v5 geocoding type and triggers 422 responses.
+    types: 'address,place,postcode,locality,neighborhood',
   });
-  const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(normalized)}.json?${params.toString()}`;
+  const baseUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(normalized)}.json`;
+  const endpoint = `${baseUrl}?${params.toString()}`;
 
-  const response = await fetch(endpoint, { signal });
+  let response = await fetch(endpoint, { signal });
+  if (!response.ok && response.status === 422) {
+    // Retry without the "types" filter in case Mapbox rejects the type list.
+    params.delete('types');
+    response = await fetch(`${baseUrl}?${params.toString()}`, { signal });
+  }
+
   if (!response.ok) {
-    throw new Error('Address lookup failed');
+    throw new Error(`Address lookup failed (${response.status})`);
   }
 
   const payload = (await response.json()) as MapboxResponse;
@@ -82,6 +91,8 @@ export async function searchMapboxAddresses(
       state: stateEntry?.text,
       stateCode,
       country: countryEntry?.text,
+      longitude: feature.center?.[0],
+      latitude: feature.center?.[1],
     };
   });
 }

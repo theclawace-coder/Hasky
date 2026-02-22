@@ -4,11 +4,21 @@ import {
   createInvoiceFromBooking,
   getBookingById,
   getBookings,
+  markBookingDepositPaid,
+  markBookingPaidInFull,
   upsertBooking,
   updateBookingAndMachineStatus,
 } from '../services/api';
+import type { Booking, BookingChargeItem } from '../types';
 
-export function useBookings(filters?: { status?: string; machineId?: string; dateFrom?: string; dateTo?: string }) {
+export function useBookings(filters?: {
+  status?: string;
+  machineId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  dateOn?: string;
+  includeChargeItems?: boolean;
+}) {
   const queryClient = useQueryClient();
 
   const bookingsQuery = useQuery({
@@ -18,7 +28,13 @@ export function useBookings(filters?: { status?: string; machineId?: string; dat
   });
 
   const saveBookingMutation = useMutation({
-    mutationFn: upsertBooking,
+    mutationFn: ({
+      payload,
+      chargeItems,
+    }: {
+      payload: Partial<Booking>;
+      chargeItems?: Array<Pick<BookingChargeItem, 'description' | 'quantity' | 'unit_price'>>;
+    }) => upsertBooking(payload, chargeItems ?? []),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['bookings'] });
       void queryClient.invalidateQueries({ queryKey: ['machines'] });
@@ -48,11 +64,28 @@ export function useBookings(filters?: { status?: string; machineId?: string; dat
     },
   });
 
+  const markDepositPaidMutation = useMutation({
+    mutationFn: ({ bookingId, amount }: { bookingId: string; amount?: number }) =>
+      markBookingDepositPaid(bookingId, amount),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    },
+  });
+
+  const markPaidInFullMutation = useMutation({
+    mutationFn: ({ bookingId }: { bookingId: string }) => markBookingPaidInFull(bookingId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    },
+  });
+
   return {
     bookingsQuery,
     saveBookingMutation,
     updateLifecycleMutation,
     generateInvoiceMutation,
+    markDepositPaidMutation,
+    markPaidInFullMutation,
   };
 }
 

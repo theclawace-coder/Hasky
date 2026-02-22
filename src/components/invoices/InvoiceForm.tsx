@@ -1,11 +1,11 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { addDays } from 'date-fns';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { LineItemsTable, type LineItemValue } from './LineItemsTable';
-import type { Customer, Invoice, Booking } from '../../types';
+import type { Booking, Customer, Invoice, InvoiceStatus } from '../../types';
 
 interface InvoiceFormProps {
   customers: Customer[];
@@ -22,18 +22,27 @@ export function InvoiceForm({ customers, bookings, defaultValues, defaultItems, 
   const [bookingId, setBookingId] = useState(defaultValues?.booking_id ?? '');
   const [issueDate, setIssueDate] = useState(defaultValues?.issue_date ?? new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState(defaultValues?.due_date ?? addDays(new Date(), 14).toISOString().split('T')[0]);
-  const [status, setStatus] = useState<string>(defaultValues?.status ?? 'draft');
+  const [status, setStatus] = useState<InvoiceStatus>(defaultValues?.status ?? 'draft');
   const [notes, setNotes] = useState(defaultValues?.notes ?? '');
   const [items, setItems] = useState<LineItemValue[]>(defaultItems ?? [{ description: '', quantity: 1, unit_price: 0 }]);
 
-  useEffect(() => {
-    if (!bookingId) {
+  const { subtotal, gst, total } = useMemo(() => {
+    const sub = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+    const gstValue = sub * 0.1;
+    return { subtotal: sub, gst: gstValue, total: sub + gstValue };
+  }, [items]);
+
+  const onBookingChange = (nextBookingId: string) => {
+    setBookingId(nextBookingId);
+    if (!nextBookingId) {
       return;
     }
-    const booking = bookings.find((item) => item.id === bookingId);
+
+    const booking = bookings.find((item) => item.id === nextBookingId);
     if (!booking) {
       return;
     }
+
     setCustomerId(booking.customer_id);
     setItems([
       {
@@ -42,13 +51,7 @@ export function InvoiceForm({ customers, bookings, defaultValues, defaultItems, 
         unit_price: Number(booking.total_amount ?? booking.rate_amount),
       },
     ]);
-  }, [bookingId, bookings]);
-
-  const { subtotal, gst, total } = useMemo(() => {
-    const sub = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
-    const gstValue = sub * 0.1;
-    return { subtotal: sub, gst: gstValue, total: sub + gstValue };
-  }, [items]);
+  };
 
   const submit = () => {
     onSubmit(
@@ -62,7 +65,7 @@ export function InvoiceForm({ customers, bookings, defaultValues, defaultItems, 
         subtotal,
         gst,
         total,
-        status: status as any,
+        status,
         notes,
       },
       items,
@@ -78,7 +81,7 @@ export function InvoiceForm({ customers, bookings, defaultValues, defaultItems, 
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Status</label>
-          <Select value={status} onChange={(event) => setStatus(event.target.value)}>
+          <Select value={status} onChange={(event) => setStatus(event.target.value as InvoiceStatus)}>
             <option value="draft">Draft</option>
             <option value="sent">Sent</option>
             <option value="paid">Paid</option>
@@ -96,7 +99,7 @@ export function InvoiceForm({ customers, bookings, defaultValues, defaultItems, 
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Booking (optional)</label>
-          <Select value={bookingId} onChange={(event) => setBookingId(event.target.value)}>
+          <Select value={bookingId} onChange={(event) => onBookingChange(event.target.value)}>
             <option value="">Standalone invoice</option>
             {bookings.map((booking) => (
               <option key={booking.id} value={booking.id}>{booking.machines?.name} - {booking.customers?.name}</option>

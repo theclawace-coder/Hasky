@@ -3,6 +3,8 @@ import {
   deleteExpense,
   getAccountingSummary,
   getExpenses,
+  getMachineExpenses,
+  getMachineProfitability,
   upsertExpense,
 } from '../services/api';
 import type { Expense } from '../types';
@@ -11,6 +13,7 @@ export function useExpenses(filters?: {
   category?: string;
   dateFrom?: string;
   dateTo?: string;
+  bookingId?: string;
 }) {
   const queryClient = useQueryClient();
 
@@ -42,5 +45,19 @@ export function useAccountingSummary(dateFrom: string, dateTo: string) {
   return useQuery({
     queryKey: ['accounting_summary', dateFrom, dateTo],
     queryFn: () => getAccountingSummary(dateFrom, dateTo),
+  });
+}
+
+export function useMachineProfitability(dateFrom: string, dateTo: string) {
+  return useQuery({
+    queryKey: ['machine_profitability', dateFrom, dateTo],
+    queryFn: () => getMachineProfitability(dateFrom, dateTo),
+  });
+}
+
+export function useMachineExpenses(dateFrom: string, dateTo: string) {
+  return useQuery({
+    queryKey: ['machine_expenses', dateFrom, dateTo],
+    queryFn: () => getMachineExpenses(dateFrom, dateTo),
   });
 }

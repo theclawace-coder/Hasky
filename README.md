@@ -44,6 +44,11 @@ PLATFORM_ADMIN_EMAIL=
   - `supabase/migrations/002_machine_model_catalog.sql`
   - `supabase/migrations/003_document_sharing_and_quote_payments.sql`
   - `supabase/migrations/004_company_stripe_keys.sql`
+  - `supabase/migrations/005_company_settings_trigger.sql`
+  - `supabase/migrations/006_security_hardening.sql`
+  - `supabase/migrations/007_booking_status_atomic_update.sql`
+  - `supabase/migrations/008_machine_weekend_rate_and_catalog_categories.sql`
+  - `supabase/migrations/009_job_first_flow_payments_extras_map.sql`
 
 4. Deploy edge functions:
 
@@ -81,9 +86,44 @@ npm run dev
 - `npm run preview` - Preview production build
 - `npm run test` - Run Vitest suite
 - `npm run test:watch` - Run Vitest in watch mode
+- `npm run test:e2e` - Run Playwright generic audit suite
+- `npm run test:e2e:matrix` - Run Playwright audit across `anonymous,basic,admin` role projects
+- `npm run test:e2e:headed` - Run Playwright audit in headed mode
+- `npm run test:e2e:ui` - Run Playwright with interactive UI mode
+- `npm run test:e2e:report` - Open Playwright HTML report
+- `npm run e2e:auth:states` - Generate `basic` and `admin` storage states from env credentials
+- `npm run e2e:auth:states:basic` - Generate only `basic` storage state
+- `npm run e2e:auth:states:admin` - Generate only `admin` storage state
 - `npm run scrape:tvh-model-catalog` - Scrape TVH model + image catalog into JSON
 - `npm run sync:tvh-model-catalog` - Scrape and upsert into Supabase (requires `SUPABASE_SERVICE_ROLE_KEY`)
 - `powershell -ExecutionPolicy Bypass -File scripts/deploy-supabase.ps1 ...` - Push migrations, deploy edge functions, and optionally set secrets
+
+## E2E Audit (Playwright)
+
+1. Configure env values in `.env`:
+
+```env
+E2E_BASE_URL=http://127.0.0.1:3000
+E2E_START_COMMAND=
+E2E_ARTIFACTS_DIR=e2e/artifacts
+E2E_ROLES=anonymous
+E2E_BASIC_STORAGE_STATE=e2e/.auth/basic.json
+E2E_ADMIN_STORAGE_STATE=e2e/.auth/admin.json
+```
+
+2. Install browser runtime (once per machine):
+
+```bash
+npx playwright install chromium
+```
+
+3. Run the audit:
+
+```bash
+npm run test:e2e
+```
+
+For details, see `e2e/README.md`.
 
 ## TVH Model Catalog Import
 

@@ -1,21 +1,22 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { LandingLayout, ctaBtnClass, ctaBtnStyle } from '../../components/landing/LandingLayout';
+import { LandingLayout } from '../../components/landing/LandingLayout';
+import { ctaBtnClass, ctaBtnStyle } from '../../components/landing/ctaStyles';
 import { useAuth } from '../../hooks/useAuth';
 
-/* ── Shared animation variants ──────────────────────────────────── */
+/* â”€â”€ Shared animation variants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const fadeUp = {
   hidden:  { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as number[] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const } },
 };
 
 const stagger = {
   visible: { transition: { staggerChildren: 0.08 } },
 };
 
-/* ── Mock app chrome (updated to new glass style) ───────────────── */
+/* â”€â”€ Mock app chrome (updated to new glass style) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function AppChrome({ children, title }: { children: React.ReactNode; title?: string }) {
   return (
     <div className="overflow-hidden rounded-2xl shadow-2xl" style={{ boxShadow: '0 32px 80px rgba(139,92,246,0.15), 0 8px 32px rgba(0,0,0,0.10)', border: '1px solid rgba(255,255,255,0.55)' }}>
@@ -78,7 +79,7 @@ function DashboardScreenshot() {
           {/* Hero card */}
           <div className="mb-4 overflow-hidden rounded-2xl p-4" style={{ background: 'linear-gradient(135deg, rgba(192,132,252,0.14), rgba(56,189,248,0.09))', border: '1px solid rgba(255,255,255,0.70)', backdropFilter: 'blur(12px)' }}>
             <p className="text-[9px] text-slate-400">Wednesday, 19 February 2025</p>
-            <p className="text-sm font-black text-slate-900">Good morning, <span style={{ background: 'linear-gradient(135deg, #8b5cf6, #38bdf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Jake</span> 👋</p>
+            <p className="text-sm font-black text-slate-900">Good morning, <span style={{ background: 'linear-gradient(135deg, #8b5cf6, #38bdf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Jake</span> ðŸ‘‹</p>
             <p className="text-[10px] text-slate-500">You've collected <span className="text-sm font-black" style={{ background: 'linear-gradient(135deg, #8b5cf6, #38bdf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>$62,400</span> this month</p>
           </div>
 
@@ -132,35 +133,35 @@ function DashboardScreenshot() {
   );
 }
 
-/* ── Data ─────────────────────────────────────────────────────── */
+/* â”€â”€ Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const features = [
-  { icon: '🚜', title: 'Fleet Management',  desc: 'Track every machine — status, availability, service history, and hire rates.' },
-  { icon: '📅', title: 'Job Scheduling',    desc: 'Book jobs in seconds. Conflicts flagged automatically. Never double-book.' },
-  { icon: '👥', title: 'Customer CRM',      desc: 'Full customer database with complete hire history and contact details.' },
-  { icon: '📄', title: 'Quotes',            desc: 'Professional quotes sent instantly. Customers accept online. One click to invoice.' },
-  { icon: '🧾', title: 'Invoicing',         desc: 'GST-compliant invoices with Stripe card payments built right in.' },
-  { icon: '📊', title: 'Reports',           desc: 'P&L, GST summary for BAS, and revenue by machine — all calculated automatically.' },
+  { icon: 'ðŸšœ', title: 'Fleet Management',  desc: 'Track every machine â€” status, availability, service history, and hire rates.' },
+  { icon: 'ðŸ“…', title: 'Job Scheduling',    desc: 'Book jobs in seconds. Conflicts flagged automatically. Never double-book.' },
+  { icon: 'ðŸ‘¥', title: 'Customer CRM',      desc: 'Full customer database with complete hire history and contact details.' },
+  { icon: 'ðŸ“„', title: 'Quotes',            desc: 'Professional quotes sent instantly. Customers accept online. One click to invoice.' },
+  { icon: 'ðŸ§¾', title: 'Invoicing',         desc: 'GST-compliant invoices with Stripe card payments built right in.' },
+  { icon: 'ðŸ“Š', title: 'Reports',           desc: 'P&L, GST summary for BAS, and revenue by machine â€” all calculated automatically.' },
 ];
 
 const testimonials = [
   {
-    quote: "Finally something built for us. I was running everything on spreadsheets. Hasky replaced all of it — and it's actually free.",
-    name: 'Matt H.', role: 'Earthmoving operator · QLD',
+    quote: "Finally something built for us. I was running everything on spreadsheets. Hasky replaced all of it â€” and it's actually free.",
+    name: 'Matt H.', role: 'Earthmoving operator Â· QLD',
     avatar: 'MH', grad: 'from-violet-500 to-indigo-600',
   },
   {
     quote: "Sending invoices used to take me an hour. Now it's two minutes. Customers pay by card straight from the invoice. Game changer.",
-    name: 'Tanya C.', role: 'Plant hire business · NSW',
+    name: 'Tanya C.', role: 'Plant hire business Â· NSW',
     avatar: 'TC', grad: 'from-sky-500 to-cyan-600',
   },
   {
     quote: "The fleet view alone is worth it. I know what's out, what's available and what needs a service. From my phone, any time.",
-    name: 'Ryan B.', role: 'Crane hire · WA',
+    name: 'Ryan B.', role: 'Crane hire Â· WA',
     avatar: 'RB', grad: 'from-emerald-500 to-teal-600',
   },
 ];
 
-/* ── Page ─────────────────────────────────────────────────────── */
+/* â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export default function LandingPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -181,7 +182,7 @@ export default function LandingPage() {
 
   return (
     <LandingLayout>
-      {/* ── Hero ──────────────────────────────────────────────── */}
+      {/* â”€â”€ Hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="relative overflow-hidden px-6 pb-20 pt-24 lg:px-12 lg:pt-32">
         {/* Glow orb */}
         <div
@@ -221,7 +222,7 @@ export default function LandingPage() {
           </motion.h1>
 
           <motion.p variants={fadeUp} className="mx-auto mb-10 max-w-2xl text-lg text-slate-500 sm:text-xl">
-            Fleet management, job scheduling, CRM, quotes, invoices, and reports —
+            Fleet management, job scheduling, CRM, quotes, invoices, and reports â€”
             all in one app built for machinery hire.{' '}
             <strong className="font-bold text-slate-800">100% free. Forever.</strong>
           </motion.p>
@@ -232,7 +233,7 @@ export default function LandingPage() {
               className="group flex items-center gap-2 rounded-2xl px-8 py-4 text-base font-bold text-white shadow-xl transition-all hover:-translate-y-0.5 hover:brightness-110 hover:shadow-2xl active:scale-[0.98]"
               style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9, #4f46e5)', boxShadow: '0 8px 28px rgba(124,58,237,0.35)' }}
             >
-              Start for free — no credit card
+              Start for free â€” no credit card
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <Link
@@ -259,14 +260,14 @@ export default function LandingPage() {
           className="relative mx-auto mt-16 max-w-5xl"
           initial={{ opacity: 0, y: 32 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+          transition={{ duration: 0.7, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const }}
         >
           <div className="pointer-events-none absolute -inset-12 rounded-3xl blur-3xl opacity-30" style={{ background: 'radial-gradient(ellipse at 50% 100%, rgba(192,132,252,0.25) 0%, transparent 70%)' }} />
           <DashboardScreenshot />
         </motion.div>
       </section>
 
-      {/* ── Industry strip ─────────────────────────────────────── */}
+      {/* â”€â”€ Industry strip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div
         className="border-y px-6 py-10"
         style={{ background: 'rgba(255,255,255,0.50)', borderColor: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(8px)' }}
@@ -275,7 +276,7 @@ export default function LandingPage() {
           Built for every kind of machinery hire
         </p>
         <div className="mx-auto flex max-w-4xl flex-wrap justify-center gap-3">
-          {['🚜 Excavators', '🚛 Tipper Trucks', '🏗️ Cranes', '⚙️ Skid Steers', '🔩 Forklifts', '🛤️ Rollers & Pavers', '💧 Water Carts', '🏚️ Telehandlers'].map((item) => (
+          {['ðŸšœ Excavators', 'ðŸš› Tipper Trucks', 'ðŸ—ï¸ Cranes', 'âš™ï¸ Skid Steers', 'ðŸ”© Forklifts', 'ðŸ›¤ï¸ Rollers & Pavers', 'ðŸ’§ Water Carts', 'ðŸšï¸ Telehandlers'].map((item) => (
             <span
               key={item}
               className="rounded-full px-4 py-2 text-sm font-medium text-slate-600"
@@ -287,7 +288,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ── $0 callout ─────────────────────────────────────────── */}
+      {/* â”€â”€ $0 callout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 py-24 lg:px-12">
         <div
           className="mx-auto max-w-4xl overflow-hidden rounded-3xl p-12 text-center"
@@ -307,24 +308,24 @@ export default function LandingPage() {
           <p className="mb-2 text-xl font-bold text-slate-900">Completely free. No trials. No limits. No catch.</p>
           <p className="mx-auto mb-8 max-w-lg text-sm text-slate-500">
             The only fully free CRM and scheduling platform built specifically for machinery hire businesses in Australia.
-            Unlimited machines, unlimited customers, unlimited invoices — free forever.
+            Unlimited machines, unlimited customers, unlimited invoices â€” free forever.
           </p>
           <Link to="/signup" className={`inline-flex items-center gap-2 ${ctaBtnClass}`} style={{ ...ctaBtnStyle, padding: '14px 32px', fontSize: '15px' }}>
-            Get started — it's free
+            Get started â€” it's free
           </Link>
           <p className="mt-5 text-xs text-slate-400">
-            ✓ Unlimited machines · ✓ Unlimited customers · ✓ Unlimited invoices · ✓ No credit card ever
+            âœ“ Unlimited machines Â· âœ“ Unlimited customers Â· âœ“ Unlimited invoices Â· âœ“ No credit card ever
           </p>
         </div>
       </section>
 
-      {/* ── Feature cards ──────────────────────────────────────── */}
+      {/* â”€â”€ Feature cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 pb-24 lg:px-12">
         <div className="mx-auto max-w-6xl">
           <p className="mb-3 text-sm font-bold uppercase tracking-widest" style={{ color: '#7c3aed' }}>Everything included</p>
           <h2 className="mb-4 text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">One app. Everything you need.</h2>
           <p className="mb-12 max-w-xl text-lg text-slate-500">
-            From the first phone call to the final payment — Hasky handles the full lifecycle of every hire job.
+            From the first phone call to the final payment â€” Hasky handles the full lifecycle of every hire job.
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((f, i) => (
@@ -333,7 +334,7 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
+                transition={{ duration: 0.4, delay: i * 0.06, ease: [0.25, 0.46, 0.45, 0.94] as const }}
                 className="group rounded-2xl p-7 transition-all hover:-translate-y-1 hover:shadow-xl"
                 style={{
                   background: 'rgba(255,255,255,0.72)',
@@ -350,13 +351,13 @@ export default function LandingPage() {
           </div>
           <div className="mt-8 text-center">
             <Link to="/features" className="text-sm font-semibold text-violet-600 hover:text-violet-700">
-              See every feature in detail →
+              See every feature in detail â†’
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ── Testimonials ───────────────────────────────────────── */}
+      {/* â”€â”€ Testimonials â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section
         className="border-y px-6 py-24 lg:px-12"
         style={{ background: 'rgba(255,255,255,0.42)', borderColor: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(8px)' }}
@@ -371,7 +372,7 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
+                transition={{ duration: 0.4, delay: i * 0.08, ease: [0.25, 0.46, 0.45, 0.94] as const }}
                 className="rounded-2xl p-7"
                 style={{
                   background: 'rgba(255,255,255,0.78)',
@@ -380,7 +381,7 @@ export default function LandingPage() {
                   boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
                 }}
               >
-                <div className="mb-4 text-amber-400">★★★★★</div>
+                <div className="mb-4 text-amber-400">â˜…â˜…â˜…â˜…â˜…</div>
                 <p className="mb-6 text-base italic leading-relaxed text-slate-700">"{t.quote}"</p>
                 <div className="flex items-center gap-3">
                   <div className={`flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${t.grad} text-sm font-bold text-white`}>
@@ -397,7 +398,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA ────────────────────────────────────────────────── */}
+      {/* â”€â”€ CTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 py-28 text-center lg:px-12">
         <div className="mx-auto max-w-2xl">
           <div
@@ -435,3 +436,6 @@ export default function LandingPage() {
     </LandingLayout>
   );
 }
+
+
+

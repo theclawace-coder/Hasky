@@ -6,6 +6,7 @@ import { cn } from '../../lib/utils';
 interface AppGuideProps {
   open: boolean;
   onClose: () => void;
+  steps?: GuideStep[];
 }
 
 interface TooltipPosition {
@@ -68,7 +69,8 @@ interface SpotlightRect {
   height: number;
 }
 
-export function AppGuide({ open, onClose }: AppGuideProps) {
+export function AppGuide({ open, onClose, steps: stepsProp }: AppGuideProps) {
+  const activeSteps = stepsProp ?? GUIDE_STEPS;
   const [step, setStep] = useState(0);
   const [spotlight, setSpotlight] = useState<SpotlightRect | null>(null);
   const [tooltipPos, setTooltipPos] = useState<TooltipPosition>({
@@ -79,9 +81,9 @@ export function AppGuide({ open, onClose }: AppGuideProps) {
   });
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  const currentStep = GUIDE_STEPS[step];
+  const currentStep = activeSteps[step];
   const isFirst = step === 0;
-  const isLast = step === GUIDE_STEPS.length - 1;
+  const isLast = step === activeSteps.length - 1;
 
   const updatePositions = useCallback(() => {
     if (!currentStep) return;
@@ -242,7 +244,7 @@ export function AppGuide({ open, onClose }: AppGuideProps) {
 
           {/* Progress dots */}
           <div className="flex items-center justify-center gap-1.5 px-5 pb-4">
-            {GUIDE_STEPS.map((_, i) => (
+            {activeSteps.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setStep(i)}

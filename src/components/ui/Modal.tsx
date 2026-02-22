@@ -1,4 +1,5 @@
-import { type PropsWithChildren, useEffect } from 'react';
+import { type PropsWithChildren, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
@@ -21,8 +22,27 @@ const sizeClasses: Record<ModalSize, string> = {
 };
 
 const easing = [0.25, 0.46, 0.45, 0.94] as const;
+const MODAL_ROOT_ID = 'modal-root';
+
+function getModalRoot() {
+  let root = document.getElementById(MODAL_ROOT_ID);
+  if (root) {
+    return root;
+  }
+  root = document.createElement('div');
+  root.id = MODAL_ROOT_ID;
+  document.body.appendChild(root);
+  return root;
+}
 
 export function Modal({ open, title, description, onClose, children, size = 'md' }: ModalProps) {
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    setPortalRoot(getModalRoot());
+  }, []);
+
   // Close on Escape key
   useEffect(() => {
     if (!open) return;
@@ -33,11 +53,31 @@ export function Modal({ open, title, description, onClose, children, size = 'md'
     return () => document.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  return (
+  // Prevent background scrolling while modal is open.
+  useEffect(() => {
+    if (!open || typeof document === 'undefined') return;
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, [open]);
+
+  if (!portalRoot) {
+    return null;
+  }
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[100] overflow-y-auto p-4 sm:p-6"
           role="dialog"
           aria-modal="true"
           initial={{ opacity: 0 }}
@@ -51,45 +91,48 @@ export function Modal({ open, title, description, onClose, children, size = 'md'
             onClick={onClose}
           />
 
-          {/* Panel */}
-          <motion.div
-            className={cn(
-              'relative w-full rounded-3xl overflow-hidden',
-              'glass shadow-2xl shadow-black/15',
-              sizeClasses[size],
-            )}
-            initial={{ opacity: 0, scale: 0.93, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.93, y: 16 }}
-            transition={{ duration: 0.24, ease: easing }}
-          >
-            {/* Gradient accent line at top */}
-            <div
-              className="h-[3px] w-full"
-              style={{ background: 'linear-gradient(90deg, #c084fc, #818cf8, #38bdf8)' }}
-            />
+          <div className="relative flex min-h-full items-start justify-center py-2 sm:items-center sm:py-6">
+            {/* Panel */}
+            <motion.div
+              className={cn(
+                'relative flex w-full max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-3xl',
+                'glass shadow-2xl shadow-black/15',
+                sizeClasses[size],
+              )}
+              initial={{ opacity: 0, scale: 0.93, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.93, y: 16 }}
+              transition={{ duration: 0.24, ease: easing }}
+            >
+              {/* Gradient accent line at top */}
+              <div
+                className="h-[3px] w-full"
+                style={{ background: 'linear-gradient(90deg, #c084fc, #818cf8, #38bdf8)' }}
+              />
 
-            {/* Header */}
-            <div className="flex items-start justify-between border-b border-white/30 px-6 py-4">
-              <div>
-                <h2 className="text-xl font-bold tracking-tight text-slate-900">{title}</h2>
-                {description ? (
-                  <p className="mt-0.5 text-sm text-slate-500">{description}</p>
-                ) : null}
+              {/* Header */}
+              <div className="flex items-start justify-between border-b border-white/30 px-6 py-4">
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900">{title}</h2>
+                  {description ? (
+                    <p className="mt-0.5 text-sm text-slate-500">{description}</p>
+                  ) : null}
+                </div>
+                <button
+                  onClick={onClose}
+                  className="ml-4 rounded-xl p-2 text-slate-400 transition-all hover:bg-white/60 hover:text-slate-600 hover:shadow-sm"
+                >
+                  <X className="size-4" />
+                </button>
               </div>
-              <button
-                onClick={onClose}
-                className="ml-4 rounded-xl p-2 text-slate-400 transition-all hover:bg-white/60 hover:text-slate-600 hover:shadow-sm"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
 
-            {/* Body */}
-            <div className="max-h-[80vh] overflow-y-auto px-6 py-5">{children}</div>
-          </motion.div>
+              {/* Body */}
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+            </motion.div>
+          </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    portalRoot,
   );
 }

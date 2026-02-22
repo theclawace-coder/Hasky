@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   List,
   CalendarRange,
   Plus,
   ChevronLeft,
   ChevronRight,
+  Search,
 } from 'lucide-react';
 import {
   addDays,
@@ -21,13 +22,15 @@ import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Table, TableContainer } from '../../components/ui/Table';
 import { formatCurrency, formatDate } from '../../lib/utils';
+import { BOOKING_STATUS_LABELS } from '../../lib/constants';
 
-const tabs = ['', 'quote', 'confirmed', 'active', 'completed'];
+const tabs = ['', 'quote', 'confirmed', 'completed', 'cancelled'];
 
 export default function BookingsList() {
   const navigate = useNavigate();
   const [calendarView, setCalendarView] = useState(true);
   const [status, setStatus] = useState('');
+  const [search, setSearch] = useState('');
   const [calendarMode, setCalendarMode] = useState<'week' | 'month'>('week');
   const [calendarDate, setCalendarDate] = useState(new Date());
 
@@ -39,6 +42,16 @@ export default function BookingsList() {
     () => (machinesQuery.data ?? []).sort((a, b) => a.name.localeCompare(b.name)),
     [machinesQuery.data],
   );
+
+  const filteredBookings = useMemo(() => {
+    if (!search.trim()) return bookings;
+    const q = search.toLowerCase();
+    return bookings.filter(
+      (b) =>
+        b.customers?.name?.toLowerCase().includes(q) ||
+        b.machines?.name?.toLowerCase().includes(q),
+    );
+  }, [bookings, search]);
 
   const calendarLabel = useMemo(() => {
     if (calendarMode === 'month') {
@@ -60,7 +73,7 @@ export default function BookingsList() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-2xl font-semibold text-slate-900">Bookings</h2>
+        <h2 className="text-2xl font-semibold text-slate-900">Jobs</h2>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant={calendarView ? 'primary' : 'secondary'}
@@ -78,7 +91,7 @@ export default function BookingsList() {
           </Button>
           <Button onClick={() => navigate('/bookings/new')}>
             <Plus className="size-4" />
-            New Booking
+            New Job
           </Button>
         </div>
       </div>
@@ -91,7 +104,7 @@ export default function BookingsList() {
             variant={status === tab ? 'primary' : 'secondary'}
             onClick={() => setStatus(tab)}
           >
-            {tab ? tab[0].toUpperCase() + tab.slice(1) : 'All'}
+            {tab ? (BOOKING_STATUS_LABELS[tab] ?? tab[0].toUpperCase() + tab.slice(1)) : 'All'}
           </Button>
         ))}
       </div>
@@ -148,42 +161,68 @@ export default function BookingsList() {
           />
         </>
       ) : (
-        <TableContainer>
-          <Table>
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="p-3">Machine</th>
-                <th className="p-3">Customer</th>
-                <th className="p-3">Start</th>
-                <th className="p-3">End</th>
-                <th className="p-3">Rate</th>
-                <th className="p-3">Total</th>
-                <th className="p-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bookings.map((booking) => (
-                <tr
-                  key={booking.id}
-                  className="cursor-pointer border-t border-slate-100 hover:bg-slate-50"
-                  onClick={() => navigate(`/bookings/${booking.id}`)}
-                >
-                  <td className="p-3">{booking.machines?.name}</td>
-                  <td className="p-3">{booking.customers?.name}</td>
-                  <td className="p-3">{formatDate(booking.start_date)}</td>
-                  <td className="p-3">{formatDate(booking.end_date)}</td>
-                  <td className="p-3">{formatCurrency(booking.rate_amount)}</td>
-                  <td className="p-3">
-                    {formatCurrency(Number(booking.total_amount ?? booking.rate_amount))}
-                  </td>
-                  <td className="p-3">
-                    <StatusBadge status={booking.status} />
-                  </td>
+        <>
+          {/* Search bar — list view only */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              placeholder="Search by customer or machine..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-4 text-sm shadow-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
+            />
+          </div>
+
+          <TableContainer>
+            <Table>
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="p-3">Job #</th>
+                  <th className="p-3">Machine</th>
+                  <th className="p-3">Customer</th>
+                  <th className="p-3">Start</th>
+                  <th className="p-3">End</th>
+                  <th className="p-3">Rate</th>
+                  <th className="p-3">Total</th>
+                  <th className="p-3">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
-        </TableContainer>
+              </thead>
+              <tbody>
+                {filteredBookings.length === 0 ? (
+                  <tr className="border-t border-slate-100">
+                    <td colSpan={8} className="p-6 text-center text-sm text-slate-400">
+                      {search ? `No jobs matching "${search}"` : 'No jobs found'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredBookings.map((booking) => (
+                    <tr
+                      key={booking.id}
+                      className="cursor-pointer border-t border-slate-100 hover:bg-slate-50"
+                      onClick={() => navigate(`/bookings/${booking.id}`)}
+                    >
+                      <td className="p-3 font-medium text-violet-600" onClick={(e) => e.stopPropagation()}>
+                        <Link to={`/bookings/${booking.id}`}>{booking.booking_number ?? '—'}</Link>
+                      </td>
+                      <td className="p-3">{booking.machines?.name}</td>
+                      <td className="p-3">{booking.customers?.name}</td>
+                      <td className="p-3">{formatDate(booking.start_date)}</td>
+                      <td className="p-3">{formatDate(booking.end_date)}</td>
+                      <td className="p-3">{formatCurrency(booking.rate_amount)}</td>
+                      <td className="p-3">
+                        {formatCurrency(Number(booking.total_amount ?? booking.rate_amount))}
+                      </td>
+                      <td className="p-3">
+                        <StatusBadge status={booking.status} label={BOOKING_STATUS_LABELS[booking.status]} />
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          </TableContainer>
+        </>
       )}
     </div>
   );

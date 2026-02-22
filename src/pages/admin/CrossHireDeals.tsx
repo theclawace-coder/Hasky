@@ -9,19 +9,20 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { formatCurrency, formatDate } from '../../lib/utils';
+import type { CrossHireDeal } from '../../types';
 
 export default function CrossHireDeals() {
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { dealsQuery, saveDealMutation } = useCrossHireDeals();
-  const deals = dealsQuery.data ?? [];
+  const deals = useMemo(() => dealsQuery.data ?? [], [dealsQuery.data]);
 
   const selectedDeal = useMemo(() => deals.find((deal) => deal.id === selectedId), [deals, selectedId]);
 
   const moveDeal = async (id: string, status: string) => {
     try {
-      await saveDealMutation.mutateAsync({ id, status } as any);
+      await saveDealMutation.mutateAsync({ id, status: status as CrossHireDeal['status'] });
       toast.success('Deal status updated');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update deal');
@@ -30,7 +31,7 @@ export default function CrossHireDeals() {
 
   const saveDeal = async (values: DealFormValues) => {
     try {
-      await saveDealMutation.mutateAsync(values as any);
+      await saveDealMutation.mutateAsync(values);
       toast.success('Deal saved');
       setOpen(false);
       setSelectedId(null);

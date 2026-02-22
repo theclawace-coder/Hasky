@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Clock,
   Sparkles,
+  Hourglass,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
@@ -35,7 +36,7 @@ const container = {
 
 const item = {
   hidden:  { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as number[] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as const } },
 };
 
 /* ── Data ─────────────────────────────────────────────────────── */
@@ -71,8 +72,12 @@ export default function Dashboard() {
   const hireRate         = Math.round((onHire / total) * 100);
   const overdueInvoices  = attentionQuery.data?.overdueInvoices ?? [];
   const expiringQuotes   = attentionQuery.data?.expiringQuotes  ?? [];
-  const hasAttentionItems= overdueInvoices.length > 0 || expiringQuotes.length > 0;
-  const upcomingBookings = (upcomingQuery.data ?? []).slice(0, 6);
+  const pendingJobs      = attentionQuery.data?.pendingJobs     ?? [];
+  const overdueReturns   = attentionQuery.data?.overdueReturns  ?? [];
+  const hasAttentionItems= overdueInvoices.length > 0 || expiringQuotes.length > 0 || pendingJobs.length > 0 || overdueReturns.length > 0;
+  const upcomingBookings = (upcomingQuery.data ?? [])
+    .filter((b) => b.status !== 'cancelled' && b.status !== 'completed')
+    .slice(0, 6);
 
   return (
     <motion.div
@@ -166,7 +171,7 @@ export default function Dashboard() {
 
           {/* New Quote */}
           <Link
-            to="/quotes"
+            to="/quotes?new=true"
             className="group relative overflow-hidden flex items-center gap-4 rounded-2xl px-5 py-4 text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]"
             style={{
               background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #075985 100%)',
@@ -185,7 +190,7 @@ export default function Dashboard() {
 
           {/* New Invoice */}
           <Link
-            to="/invoices"
+            to="/invoices?new=true"
             className="group relative overflow-hidden flex items-center gap-4 rounded-2xl px-5 py-4 text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]"
             style={{
               background: 'linear-gradient(135deg, #ea580c 0%, #c2410c 50%, #9a3412 100%)',
@@ -220,7 +225,7 @@ export default function Dashboard() {
               <AlertTriangle className="size-5 text-red-500 shrink-0" />
               <h3 className="font-bold text-red-800">Needs your attention</h3>
               <span className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white shadow-sm">
-                {overdueInvoices.length + expiringQuotes.length}
+                {overdueInvoices.length + expiringQuotes.length + pendingJobs.length + overdueReturns.length}
               </span>
             </div>
             <div className="space-y-2">
@@ -262,6 +267,48 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <span className="shrink-0 text-sm font-bold text-amber-700">{formatCurrency(q.total)}</span>
+                </Link>
+              ))}
+              {pendingJobs.map((job) => (
+                <Link
+                  key={job.id}
+                  to={`/bookings/${job.id}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-violet-100 bg-white/70 px-4 py-2.5 transition-all hover:bg-violet-50/80 hover:-translate-y-px hover:shadow-sm backdrop-blur-sm"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-violet-100">
+                      <Hourglass className="size-3.5 text-violet-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        Job awaiting confirmation — {job.customers?.name ?? 'Unknown'}
+                      </p>
+                      <p className="text-xs text-violet-500">{job.machines?.name ?? 'Unknown machine'} · Record payment to confirm</p>
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-sm font-bold text-violet-700">{formatCurrency(job.total_amount ?? 0)}</span>
+                </Link>
+              ))}
+              {overdueReturns.map((job) => (
+                <Link
+                  key={job.id}
+                  to={`/bookings/${job.id}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 bg-white/70 px-4 py-2.5 transition-all hover:bg-orange-50/80 hover:-translate-y-px hover:shadow-sm backdrop-blur-sm"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-orange-100">
+                      <Truck className="size-3.5 text-orange-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        Machine overdue — {job.customers?.name ?? 'Unknown'}
+                      </p>
+                      <p className="text-xs text-orange-600">
+                        {job.machines?.name ?? 'Unknown machine'} · Was due back {job.end_date}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-xs font-medium text-orange-700">{job.booking_number ?? '—'}</span>
                 </Link>
               ))}
             </div>
@@ -449,3 +496,5 @@ export default function Dashboard() {
     </motion.div>
   );
 }
+
+

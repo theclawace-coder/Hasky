@@ -1,5 +1,5 @@
 ﻿import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
@@ -111,13 +111,16 @@ export default function CustomerDetail() {
         <Card>
           <div className="space-y-3">
             {stats.bookings.length ? stats.bookings.map((booking) => (
-              <a key={booking.id} href={`/bookings/${booking.id}`} className="block rounded-lg border border-slate-100 bg-slate-50 p-3">
+              <Link key={booking.id} to={`/bookings/${booking.id}`} className="block rounded-lg border border-slate-100 bg-slate-50 p-3 transition-colors hover:bg-slate-100">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium text-slate-900">{booking.machines?.name}</p>
+                  <div>
+                    <p className="font-medium text-slate-900">{booking.booking_number ?? booking.machines?.name}</p>
+                    {booking.booking_number && <p className="text-xs text-slate-500">{booking.machines?.name}</p>}
+                  </div>
                   <StatusBadge status={booking.status} />
                 </div>
-                <p className="text-sm text-slate-600">{formatDate(booking.start_date)} - {formatDate(booking.end_date)}</p>
-              </a>
+                <p className="mt-1 text-sm text-slate-600">{formatDate(booking.start_date)} – {formatDate(booking.end_date)}</p>
+              </Link>
             )) : <p className="text-sm text-slate-500">No bookings for this customer.</p>}
           </div>
         </Card>
@@ -127,13 +130,16 @@ export default function CustomerDetail() {
         <Card>
           <div className="space-y-3">
             {stats.invoices.length ? stats.invoices.map((invoice) => (
-              <a key={invoice.id} href={`/invoices/${invoice.id}`} className="block rounded-lg border border-slate-100 bg-slate-50 p-3">
+              <Link key={invoice.id} to={`/invoices/${invoice.id}`} className="block rounded-lg border border-slate-100 bg-slate-50 p-3 transition-colors hover:bg-slate-100">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-medium text-slate-900">{invoice.invoice_number}</p>
                   <StatusBadge status={invoice.status} />
                 </div>
-                <p className="text-sm text-slate-600">{formatCurrency(invoice.total)} • Due {formatDate(invoice.due_date)}</p>
-              </a>
+                <p className="mt-1 text-sm text-slate-600">
+                  {formatCurrency(invoice.total)}
+                  {invoice.due_date ? ` • Due ${formatDate(invoice.due_date)}` : ''}
+                </p>
+              </Link>
             )) : <p className="text-sm text-slate-500">No invoices for this customer.</p>}
           </div>
         </Card>

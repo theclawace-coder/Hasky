@@ -1,0 +1,45 @@
+{
+  "cookies": [
+    {
+      "name": "m",
+      "value": "5a16b6a9-f1f1-4026-930f-9bad33fb57d808f1c2",
+      "domain": "m.stripe.com",
+      "path": "/",
+      "expires": 1806282768.014786,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__stripe_mid",
+      "value": "086ddb88-e8ea-4065-9c32-03a269d7f662705cd6",
+      "domain": "127.0.0.1",
+      "path": "/",
+      "expires": 1803258768,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "__stripe_sid",
+      "value": "8925dee9-95c1-496f-a314-9adb50226970546290",
+      "domain": "127.0.0.1",
+      "path": "/",
+      "expires": 1771724568,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://127.0.0.1:3000",
+      "localStorage": [
+        {
+          "name": "sb-qsqmwsouqgfrxwgnobeq-auth-token",
+          "value": "{\"access_token\":\"eyJhbGciOiJFUzI1NiIsImtpZCI6ImIyM2IxZGM0LTNmN2MtNDQ5Yi1iYjljLWQ1YWZlMmZkMjNiOSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3FzcW13c291cWdmcnh3Z25vYmVxLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIyN2JjMjNhMy0yMzJhLTQzNzAtYTVlZC03ZDI4ZGFkZDgyOTAiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzcxNzI2MzcwLCJpYXQiOjE3NzE3MjI3NzAsImVtYWlsIjoidGhlY2xhd2FjZUBnbWFpbC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIiwiZ29vZ2xlIl19LCJ1c2VyX21ldGFkYXRhIjp7ImF2YXRhcl91cmwiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NJWnVzMTBxWmpmNTlQTWJkUGNRd1c3QnFwUURvLXI4X2xMdVJaWXFpS0xTS3kyNWc9czk2LWMiLCJlbWFpbCI6InRoZWNsYXdhY2VAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZ1bGxfbmFtZSI6IkFjZSBUaGUgQ2xhdyIsImlzcyI6Imh0dHBzOi8vYWNjb3VudHMuZ29vZ2xlLmNvbSIsIm5hbWUiOiJBY2UgVGhlIENsYXciLCJwaG9uZV92ZXJpZmllZCI6ZmFsc2UsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NJWnVzMTBxWmpmNTlQTWJkUGNRd1c3QnFwUURvLXI4X2xMdVJaWXFpS0xTS3kyNWc9czk2LWMiLCJwcm92aWRlcl9pZCI6IjEwMjAzODkwNjUxMzQ5NDI5NTg5OCIsInN1YiI6IjEwMjAzODkwNjUxMzQ5NDI5NTg5OCJ9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzcxNzIyNzcwfV0sInNlc3Npb25faWQiOiI4YjM3ZDBkMS01ODk2LTRhNTktYjY0Ny1mNGExODI5ZDg0OTIiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.qDUrE5BMTUVDLPgi-NmsrXb-EQxRxYws9BqL6kLUghr-_L7OlBT-VtxFqsvtSWI1Pz39aVBeH3AnYI4DyhIxtg\",\"token_type\":\"bearer\",\"expires_in\":3600,\"expires_at\":1771726370,\"refresh_token\":\"uzu53lhdqkas\",\"user\":{\"id\":\"27bc23a3-232a-4370-a5ed-7d28dadd8290\",\"aud\":\"authenticated\",\"role\":\"authenticated\",\"email\":\"theclawace@gmail.com\",\"email_confirmed_at\":\"2026-02-19T07:25:18.446548Z\",\"phone\":\"\",\"confirmed_at\":\"2026-02-19T07:25:18.446548Z\",\"last_sign_in_at\":\"2026-02-22T01:12:50.081725439Z\",\"app_metadata\":{\"provider\":\"email\",\"providers\":[\"email\",\"google\"]},\"user_metadata\":{\"avatar_url\":\"https://lh3.googleusercontent.com/a/ACg8ocIZus10qZjf59PMbdPcQwW7BqpQDo-r8_lLuRZYqiKLSKy25g=s96-c\",\"email\":\"theclawace@gmail.com\",\"email_verified\":true,\"full_name\":\"Ace The Claw\",\"iss\":\"https://accounts.google.com\",\"name\":\"Ace The Claw\",\"phone_verified\":false,\"picture\":\"https://lh3.googleusercontent.com/a/ACg8ocIZus10qZjf59PMbdPcQwW7BqpQDo-r8_lLuRZYqiKLSKy25g=s96-c\",\"provider_id\":\"102038906513494295898\",\"sub\":\"102038906513494295898\"},\"identities\":[{\"identity_id\":\"c6969b81-b03e-4edd-a3d9-931bb391cf8f\",\"id\":\"27bc23a3-232a-4370-a5ed-7d28dadd8290\",\"user_id\":\"27bc23a3-232a-4370-a5ed-7d28dadd8290\",\"identity_data\":{\"email\":\"theclawace@gmail.com\",\"email_verified\":false,\"phone_verified\":false,\"sub\":\"27bc23a3-232a-4370-a5ed-7d28dadd8290\"},\"provider\":\"email\",\"last_sign_in_at\":\"2026-02-19T07:25:18.440362Z\",\"created_at\":\"2026-02-19T07:25:18.440408Z\",\"updated_at\":\"2026-02-19T07:25:18.440408Z\",\"email\":\"theclawace@gmail.com\"},{\"identity_id\":\"7e538e76-7b7c-4fc3-bfca-6691011bf6a1\",\"id\":\"102038906513494295898\",\"user_id\":\"27bc23a3-232a-4370-a5ed-7d28dadd8290\",\"identity_data\":{\"avatar_url\":\"https://lh3.googleusercontent.com/a/ACg8ocIZus10qZjf59PMbdPcQwW7BqpQDo-r8_lLuRZYqiKLSKy25g=s96-c\",\"email\":\"theclawace@gmail.com\",\"email_verified\":true,\"full_name\":\"Ace The Claw\",\"iss\":\"https://accounts.google.com\",\"name\":\"Ace The Claw\",\"phone_verified\":false,\"picture\":\"https://lh3.googleusercontent.com/a/ACg8ocIZus10qZjf59PMbdPcQwW7BqpQDo-r8_lLuRZYqiKLSKy25g=s96-c\",\"provider_id\":\"102038906513494295898\",\"sub\":\"102038906513494295898\"},\"provider\":\"google\",\"last_sign_in_at\":\"2026-02-19T07:43:17.610465Z\",\"created_at\":\"2026-02-19T07:43:17.610992Z\",\"updated_at\":\"2026-02-21T01:01:07.94344Z\",\"email\":\"theclawace@gmail.com\"}],\"created_at\":\"2026-02-19T07:25:18.431194Z\",\"updated_at\":\"2026-02-22T01:12:50.088852Z\",\"is_anonymous\":false},\"weak_password\":null}"
+        }
+      ]
+    }
+  ]
+}

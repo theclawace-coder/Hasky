@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
-import { Link2, Mail, Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Link2, Mail, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../hooks/useAuth';
 import { useInvoices } from '../../hooks/useInvoices';
@@ -12,15 +13,18 @@ import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Table, TableContainer } from '../../components/ui/Table';
-import { formatCurrency, formatDate } from '../../lib/utils';
+import { dueDateStatus, formatCurrency, formatDate } from '../../lib/utils';
+import type { Invoice, InvoiceItem, InvoiceStatus } from '../../types';
 
 const statuses = ['', 'draft', 'sent', 'paid', 'overdue'];
 
 export default function InvoicesList() {
   const { profile } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [status, setStatus] = useState('');
   const [open, setOpen] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [search, setSearch] = useState('');
   const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null);
   const [copyingInvoiceId, setCopyingInvoiceId] = useState<string | null>(null);
 
@@ -28,10 +32,25 @@ export default function InvoicesList() {
   const { customersQuery } = useCustomers();
   const { bookingsQuery } = useBookings();
 
-  const invoices = useMemo(
-    () => [...(invoicesQuery.data ?? [])].sort((a, b) => b.issue_date.localeCompare(a.issue_date)),
-    [invoicesQuery.data],
-  );
+  const invoices = useMemo(() => {
+    const sorted = [...(invoicesQuery.data ?? [])].sort((a, b) => b.issue_date.localeCompare(a.issue_date));
+    if (!search.trim()) return sorted;
+    const q = search.toLowerCase();
+    return sorted.filter(
+      (inv) =>
+        inv.invoice_number?.toLowerCase().includes(q) ||
+        inv.customers?.name?.toLowerCase().includes(q),
+    );
+  }, [invoicesQuery.data, search]);
+
+  // Auto-open create modal when ?new=true (e.g. from Dashboard CTA)
+  useEffect(() => {
+    if (searchParams.get('new') === 'true') {
+      void handleCreateOpen();
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCreateOpen = async () => {
     try {
@@ -44,7 +63,10 @@ export default function InvoicesList() {
     }
   };
 
-  const onSubmit = async (payload: any, items: Array<{ description: string; quantity: number; unit_price: number }>) => {
+  const onSubmit = async (
+    payload: Partial<Invoice>,
+    items: Array<Pick<InvoiceItem, 'description' | 'quantity' | 'unit_price'>>,
+  ) => {
     if (!profile?.company_id) {
       return;
     }
@@ -55,17 +77,18 @@ export default function InvoicesList() {
     }
 
     try {
+      const invoicePayload: Partial<Invoice> = {
+        ...payload,
+        company_id: profile.company_id,
+        booking_id: payload.booking_id ?? null,
+        subtotal: payload.subtotal ?? 0,
+        gst: payload.gst ?? 0,
+        total: payload.total ?? 0,
+        status: (payload.status ?? 'draft') as InvoiceStatus,
+        issue_date: payload.issue_date ?? new Date().toISOString().split('T')[0],
+      };
       await saveInvoiceMutation.mutateAsync({
-        payload: {
-          ...payload,
-          company_id: profile.company_id,
-          booking_id: payload.booking_id ?? null,
-          subtotal: payload.subtotal ?? 0,
-          gst: payload.gst ?? 0,
-          total: payload.total ?? 0,
-          status: (payload.status ?? 'draft') as any,
-          issue_date: payload.issue_date ?? new Date().toISOString().split('T')[0],
-        } as any,
+        payload: invoicePayload,
         items,
       });
       toast.success('Invoice saved');
@@ -79,7 +102,11 @@ export default function InvoicesList() {
     setSendingInvoiceId(invoiceId);
     try {
       const response = await sendDocumentEmail('invoice', invoiceId, email ?? undefined);
-      toast.success(response.to_email ? `Invoice emailed to ${response.to_email}` : 'Invoice email sent');
+      if (response.email_sent) {
+        toast.success(response.to_email ? `Invoice emailed to ${response.to_email}` : 'Invoice email sent');
+      } else {
+        toast.info('Email service unavailable right now. A private invoice link was generated instead.');
+      }
       void invoicesQuery.refetch();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to send invoice email');
@@ -115,12 +142,22 @@ export default function InvoicesList() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         {statuses.map((tab) => (
           <Button key={tab || 'all'} size="sm" variant={status === tab ? 'primary' : 'secondary'} onClick={() => setStatus(tab)}>
             {tab ? tab[0].toUpperCase() + tab.slice(1) : 'All'}
           </Button>
         ))}
+        <div className="relative ml-auto min-w-48">
+          <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            placeholder="Search invoices..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-slate-200 py-1.5 pl-8 pr-3 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
+          />
+        </div>
       </div>
 
       <TableContainer>
@@ -130,6 +167,7 @@ export default function InvoicesList() {
               <th className="p-3">Invoice #</th>
               <th className="p-3">Customer</th>
               <th className="p-3">Total</th>
+              <th className="p-3">Outstanding</th>
               <th className="p-3">Status</th>
               <th className="p-3">Issue</th>
               <th className="p-3">Due</th>
@@ -140,14 +178,14 @@ export default function InvoicesList() {
             {invoicesQuery.isLoading ? (
               Array.from({ length: 4 }).map((_, index) => (
                 <tr key={index} className="border-t border-slate-100">
-                  <td className="p-3" colSpan={7}>
+                  <td className="p-3" colSpan={8}>
                     <Skeleton className="h-8 w-full rounded-lg" />
                   </td>
                 </tr>
               ))
             ) : invoicesQuery.isError ? (
               <tr className="border-t border-slate-100">
-                <td colSpan={7} className="p-6 text-sm text-red-600">
+                <td colSpan={8} className="p-6 text-sm text-red-600">
                   {invoicesQuery.error instanceof Error
                     ? invoicesQuery.error.message
                     : 'Invoices failed to load'}
@@ -155,17 +193,40 @@ export default function InvoicesList() {
               </tr>
             ) : invoices.length === 0 ? (
               <tr className="border-t border-slate-100">
-                <td colSpan={7} className="p-6 text-sm text-slate-500">No invoices found for this filter.</td>
+                <td colSpan={8} className="p-6 text-sm text-slate-500">No invoices found for this filter.</td>
               </tr>
             ) : (
               invoices.map((invoice) => (
                 <tr key={invoice.id} className="border-t border-slate-100">
-                  <td className="p-3 font-medium text-blue-600"><a href={`/invoices/${invoice.id}`}>{invoice.invoice_number}</a></td>
+                  <td className="p-3 font-medium text-blue-600"><Link to={`/invoices/${invoice.id}`}>{invoice.invoice_number}</Link></td>
                   <td className="p-3">{invoice.customers?.name}</td>
                   <td className="p-3">{formatCurrency(invoice.total)}</td>
+                  <td className="p-3">
+                    {(() => {
+                      const outstanding = Math.max(invoice.total - Number(invoice.paid_amount ?? 0), 0);
+                      return outstanding > 0 ? (
+                        <span className="font-semibold text-red-600">{formatCurrency(outstanding)}</span>
+                      ) : (
+                        <span className="text-emerald-600">—</span>
+                      );
+                    })()}
+                  </td>
                   <td className="p-3"><StatusBadge status={invoice.status} /></td>
                   <td className="p-3">{formatDate(invoice.issue_date)}</td>
-                  <td className="p-3">{formatDate(invoice.due_date)}</td>
+                  <td className="p-3">
+                    <span>{formatDate(invoice.due_date)}</span>
+                    {(() => {
+                      const dd = dueDateStatus(invoice.due_date, invoice.status === 'paid' || invoice.status === 'cancelled');
+                      if (!dd) return null;
+                      const cls = {
+                        emerald: 'text-emerald-600',
+                        amber:   'text-amber-600',
+                        red:     'font-semibold text-red-600',
+                        slate:   'text-slate-400',
+                      }[dd.color];
+                      return <span className={`ml-1.5 text-xs ${cls}`}>{dd.label}</span>;
+                    })()}
+                  </td>
                   <td className="p-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <Button

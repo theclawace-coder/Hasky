@@ -1,8 +1,10 @@
 ﻿import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { List, LayoutGrid, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../hooks/useAuth';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useBookings } from '../../hooks/useBookings';
 import { useMachines } from '../../hooks/useMachines';
 import { MachineForm, type MachineFormValues } from '../../components/fleet/MachineForm';
 import { MachineCard } from '../../components/fleet/MachineCard';
@@ -14,6 +16,8 @@ import { Select } from '../../components/ui/Select';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Table, TableContainer } from '../../components/ui/Table';
 import { formatCurrency } from '../../lib/utils';
+import { getConflictedMachineIds, getEffectiveMachineStatus } from '../../lib/machineAvailability';
+import type { Machine } from '../../types';
 
 export default function FleetList() {
   const { profile } = useAuth();
@@ -24,24 +28,37 @@ export default function FleetList() {
   const [open, setOpen] = useState(false);
 
   const debouncedSearch = useDebounce(search, 300);
+  const todayDate = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  // For dynamic "available/on hire" display, do not server-filter these two statuses.
+  const statusFilterForQuery = status && status !== 'available' && status !== 'on_hire'
+    ? status
+    : '';
 
   const { machinesQuery, categoriesQuery, saveMachineMutation } = useMachines({
     search: debouncedSearch,
     categoryId,
-    status,
+    status: statusFilterForQuery,
   });
+  const { bookingsQuery } = useBookings({ status: 'confirmed' });
 
-  const machines = machinesQuery.data ?? [];
+  const machines = useMemo(() => machinesQuery.data ?? [], [machinesQuery.data]);
   const categories = categoriesQuery.data ?? [];
+  const loadingFleet = machinesQuery.isLoading || bookingsQuery.isLoading;
+  const todayConflictedMachineIds = useMemo(
+    () => getConflictedMachineIds(bookingsQuery.data ?? [], todayDate, todayDate, ['confirmed']),
+    [bookingsQuery.data, todayDate],
+  );
 
   const onSubmit = async (values: MachineFormValues) => {
     try {
       const { photo_url, ...payload } = values;
-      await saveMachineMutation.mutateAsync({
+      const machinePayload: Partial<Machine> = {
         ...payload,
         photo_urls: photo_url ? [photo_url] : null,
         company_id: profile?.company_id ?? undefined,
-      } as any);
+      };
+      await saveMachineMutation.mutateAsync(machinePayload);
       toast.success('Machine saved');
       setOpen(false);
     } catch (error) {
@@ -49,10 +66,18 @@ export default function FleetList() {
     }
   };
 
-  const sortedMachines = useMemo(
-    () => [...machines].sort((a, b) => a.name.localeCompare(b.name)),
-    [machines],
-  );
+  const sortedMachines = useMemo(() => {
+    const withEffectiveStatus = machines.map((machine) => ({
+      machine,
+      effectiveStatus: getEffectiveMachineStatus(machine, todayConflictedMachineIds),
+    }));
+
+    const statusFiltered = status && (status === 'available' || status === 'on_hire')
+      ? withEffectiveStatus.filter((row) => row.effectiveStatus === status)
+      : withEffectiveStatus;
+
+    return [...statusFiltered].sort((a, b) => a.machine.name.localeCompare(b.machine.name));
+  }, [machines, status, todayConflictedMachineIds]);
 
   return (
     <div className="space-y-4">
@@ -94,7 +119,7 @@ export default function FleetList() {
         </Select>
       </div>
 
-      {machinesQuery.isLoading ? (
+      {loadingFleet ? (
         <p className="text-sm text-slate-500">Loading fleet...</p>
       ) : !sortedMachines.length ? (
         <EmptyState
@@ -105,8 +130,8 @@ export default function FleetList() {
         />
       ) : isGrid ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {sortedMachines.map((machine) => (
-            <MachineCard key={machine.id} machine={machine} />
+          {sortedMachines.map(({ machine, effectiveStatus }) => (
+            <MachineCard key={machine.id} machine={machine} statusOverride={effectiveStatus} />
           ))}
         </div>
       ) : (
@@ -124,17 +149,17 @@ export default function FleetList() {
               </tr>
             </thead>
             <tbody>
-              {sortedMachines.map((machine) => (
+              {sortedMachines.map(({ machine, effectiveStatus }) => (
                 <tr key={machine.id} className="border-t border-slate-100">
                   <td className="p-3">
-                    <a href={`/fleet/${machine.id}`} className="font-semibold text-blue-600 hover:text-blue-700">
+                    <Link to={`/fleet/${machine.id}`} className="font-semibold text-blue-600 hover:text-blue-700">
                       {machine.name}
-                    </a>
+                    </Link>
                   </td>
                   <td className="p-3">{machine.machine_categories?.name ?? '-'}</td>
                   <td className="p-3">{machine.make ?? '-'} {machine.model ?? ''}</td>
                   <td className="p-3">{machine.year ?? '-'}</td>
-                  <td className="p-3"><StatusBadge status={machine.status} /></td>
+                  <td className="p-3"><StatusBadge status={effectiveStatus} /></td>
                   <td className="p-3">{formatCurrency(Number(machine.daily_rate ?? 0))}</td>
                   <td className="p-3">{machine.location ?? '-'}</td>
                 </tr>

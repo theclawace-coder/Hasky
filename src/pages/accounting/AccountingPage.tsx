@@ -15,29 +15,31 @@ import {
   Paperclip,
   Upload,
   X,
+  Truck,
+  Award,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
-import { useExpenses, useAccountingSummary } from '../../hooks/useAccounting';
+import { useExpenses, useAccountingSummary, useMachineProfitability, useMachineExpenses } from '../../hooks/useAccounting';
 import { useInvoices } from '../../hooks/useInvoices';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { StatusBadge } from '../../components/ui/StatusBadge';
 import { formatCurrency, formatDate, cn } from '../../lib/utils';
 import { EXPENSE_CATEGORIES } from '../../lib/constants';
 import type { Expense } from '../../types';
 
-type TabId = 'overview' | 'expenses' | 'reports';
+type TabId = 'overview' | 'expenses' | 'reports' | 'fleet_roi';
 type PeriodKey = 'this_month' | 'last_month' | 'this_quarter' | 'this_year' | 'custom';
 
 const TABS: { id: TabId; label: string; icon: typeof BarChart3 }[] = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
   { id: 'expenses', label: 'Expenses', icon: TrendingDown },
   { id: 'reports', label: 'P&L Report', icon: FileText },
+  { id: 'fleet_roi', label: 'Fleet ROI', icon: Truck },
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -127,9 +129,8 @@ function ExpenseFormModal({
           .from('receipts')
           .upload(path, receiptFile, { upsert: false });
         if (uploadError) throw uploadError;
-        const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(path);
-        receipt_url = urlData.publicUrl;
-      } catch (err) {
+        receipt_url = path;
+      } catch {
         toast.error('Receipt upload failed. Ensure the "receipts" storage bucket exists in Supabase.');
         setUploading(false);
         return;
@@ -356,10 +357,13 @@ export default function AccountingPage() {
   });
 
   const summaryQuery = useAccountingSummary(dateFromStr, dateToStr);
+  const profitabilityQuery = useMachineProfitability(dateFromStr, dateToStr);
+  const machineExpensesQuery = useMachineExpenses(dateFromStr, dateToStr);
+  const machineExpenses = machineExpensesQuery.data ?? new Map<string, number>();
   const { invoicesQuery } = useInvoices('paid');
 
   const summary = summaryQuery.data;
-  const expenses = expensesQuery.data ?? [];
+  const expenses = useMemo(() => expensesQuery.data ?? [], [expensesQuery.data]);
 
   // Paid invoices in period
   const paidInvoices = useMemo(
@@ -913,6 +917,164 @@ export default function AccountingPage() {
               <p className="text-xs text-amber-700">
                 This is a guide only. Please consult your accountant for official BAS lodgement. GST figures are based on the data entered in Hasky.
               </p>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {/* ── Fleet ROI Tab ── */}
+      {tab === 'fleet_roi' ? (
+        <div className="space-y-5 animate-fade-in-up">
+          {/* Period summary */}
+          {(() => {
+            const rows = profitabilityQuery.data ?? [];
+            const totalRevenue = rows.reduce((s, r) => s + r.total_revenue, 0);
+            const totalDays = rows.reduce((s, r) => s + r.total_days, 0);
+            const totalJobs = rows.reduce((s, r) => s + r.job_count, 0);
+            const periodDays = Math.max(
+              Math.ceil((new Date(dateToStr).getTime() - new Date(dateFromStr).getTime()) / 86400000) + 1,
+              1,
+            );
+            return (
+              <div className="grid gap-4 sm:grid-cols-3">
+                {[
+                  { label: 'Total Revenue', value: formatCurrency(totalRevenue), sub: 'All machines combined', color: 'stat-emerald', iconColor: 'text-emerald-600', bg: 'bg-emerald-50', Icon: DollarSign },
+                  { label: 'Hire Days', value: `${totalDays} days`, sub: `Across ${totalJobs} job${totalJobs !== 1 ? 's' : ''}`, color: 'stat-violet', iconColor: 'text-violet-600', bg: 'bg-violet-50', Icon: BarChart3 },
+                  { label: 'Fleet Utilisation', value: `${Math.min(Math.round((totalDays / (periodDays * Math.max(rows.length, 1))) * 100), 100)}%`, sub: `Over ${periodDays}-day period`, color: 'stat-amber', iconColor: 'text-amber-600', bg: 'bg-amber-50', Icon: Award },
+                ].map((kpi) => (
+                  <div key={kpi.label} className={`rounded-2xl border border-slate-200/80 p-5 shadow-sm ${kpi.color}`}>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-600">{kpi.label}</p>
+                        <p className="mt-1.5 text-2xl font-bold tracking-tight text-slate-900">{kpi.value}</p>
+                        <p className="mt-0.5 text-xs text-slate-400">{kpi.sub}</p>
+                      </div>
+                      <div className={`rounded-xl p-2.5 ${kpi.bg}`}>
+                        <kpi.Icon className={`size-5 ${kpi.iconColor}`} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* Per-machine table */}
+          <Card className="overflow-hidden p-0">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h3 className="font-semibold text-slate-900">Revenue by Machine</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Confirmed & completed jobs in selected period</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Machine</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Jobs</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Days Hired</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Avg/Day</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Total Revenue</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Expenses</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Net Profit</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Margin</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 w-40">Revenue Share</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {profitabilityQuery.isLoading ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                      <tr key={i} className="border-b border-slate-50">
+                        <td colSpan={9} className="px-5 py-3">
+                          <Skeleton className="h-6 w-full rounded" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : (profitabilityQuery.data ?? []).length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="px-5 py-14 text-center">
+                        <Truck className="mx-auto size-8 text-slate-200" />
+                        <p className="mt-2 text-sm text-slate-400">No confirmed or completed jobs in this period</p>
+                      </td>
+                    </tr>
+                  ) : (() => {
+                    const rows = profitabilityQuery.data ?? [];
+                    const maxRevenue = rows[0]?.total_revenue ?? 1;
+                    return rows.map((row, idx) => {
+                      const pct = Math.round((row.total_revenue / maxRevenue) * 100);
+                      const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null;
+                      const costs = machineExpenses.get(row.machine_id) ?? 0;
+                      const profit = row.total_revenue - costs;
+                      const margin = row.total_revenue > 0 ? Math.round((profit / row.total_revenue) * 100) : 0;
+                      return (
+                        <tr key={row.machine_id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                          <td className="px-5 py-3">
+                            <div className="flex items-center gap-2">
+                              {medal ? <span className="text-base">{medal}</span> : <span className="size-5" />}
+                              <div>
+                                <p className="font-medium text-slate-900">{row.machine_name}</p>
+                                {(row.make ?? row.model) ? (
+                                  <p className="text-xs text-slate-400">{[row.make, row.model].filter(Boolean).join(' ')}</p>
+                                ) : null}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-3 text-right text-slate-700">{row.job_count}</td>
+                          <td className="px-5 py-3 text-right text-slate-700">{row.total_days}</td>
+                          <td className="px-5 py-3 text-right text-slate-600">{formatCurrency(row.avg_daily_revenue)}</td>
+                          <td className="px-5 py-3 text-right font-semibold text-emerald-600">{formatCurrency(row.total_revenue)}</td>
+                          <td className="px-5 py-3 text-right text-red-600">{costs > 0 ? `−${formatCurrency(costs)}` : '—'}</td>
+                          <td className={`px-5 py-3 text-right font-semibold ${profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{formatCurrency(profit)}</td>
+                          <td className={`px-5 py-3 text-right font-semibold ${margin >= 50 ? 'text-emerald-700' : margin >= 20 ? 'text-amber-600' : 'text-red-600'}`}>{margin}%</td>
+                          <td className="px-5 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-2 rounded-full bg-slate-100">
+                                <div
+                                  className="h-full rounded-full bg-emerald-400 transition-all duration-500"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-slate-400 w-8 text-right">{pct}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+                {(profitabilityQuery.data ?? []).length > 0 ? (
+                  <tfoot>
+                    <tr className="bg-slate-50 border-t-2 border-slate-200">
+                      <td className="px-5 py-3 text-sm font-bold text-slate-900">Total</td>
+                      <td className="px-5 py-3 text-right font-bold text-slate-900">
+                        {(profitabilityQuery.data ?? []).reduce((s, r) => s + r.job_count, 0)}
+                      </td>
+                      <td className="px-5 py-3 text-right font-bold text-slate-900">
+                        {(profitabilityQuery.data ?? []).reduce((s, r) => s + r.total_days, 0)}
+                      </td>
+                      <td className="px-5 py-3 text-right text-slate-500">—</td>
+                      <td className="px-5 py-3 text-right font-bold text-emerald-600">
+                        {formatCurrency((profitabilityQuery.data ?? []).reduce((s, r) => s + r.total_revenue, 0))}
+                      </td>
+                      <td className="px-5 py-3 text-right font-bold text-red-600">
+                        {(() => {
+                          const totalCosts = (profitabilityQuery.data ?? []).reduce((s, r) => s + (machineExpenses.get(r.machine_id) ?? 0), 0);
+                          return totalCosts > 0 ? `−${formatCurrency(totalCosts)}` : '—';
+                        })()}
+                      </td>
+                      <td className="px-5 py-3 text-right font-bold text-slate-900">
+                        {(() => {
+                          const totalRevenue = (profitabilityQuery.data ?? []).reduce((s, r) => s + r.total_revenue, 0);
+                          const totalCosts = (profitabilityQuery.data ?? []).reduce((s, r) => s + (machineExpenses.get(r.machine_id) ?? 0), 0);
+                          const totalProfit = totalRevenue - totalCosts;
+                          return <span className={totalProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}>{formatCurrency(totalProfit)}</span>;
+                        })()}
+                      </td>
+                      <td className="px-5 py-3 text-right font-bold text-slate-500">—</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                ) : null}
+              </table>
             </div>
           </Card>
         </div>

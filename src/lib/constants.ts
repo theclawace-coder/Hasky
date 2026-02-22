@@ -8,8 +8,18 @@ export const MACHINE_STATUSES = [
   'decommissioned',
 ] as const;
 
-export const BOOKING_STATUSES = ['quote', 'confirmed', 'active', 'completed', 'cancelled'] as const;
+export const BOOKING_STATUSES = ['quote', 'confirmed', 'completed', 'cancelled'] as const;
+
+/** Maps internal booking status values to user-facing labels. */
+export const BOOKING_STATUS_LABELS: Record<string, string> = {
+  quote: 'Pending',
+  confirmed: 'Confirmed',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
 export const RATE_TYPES = ['hourly', 'daily', 'weekly', 'monthly'] as const;
+export const PAYMENT_PLANS = ['deposit', 'upfront', 'on_completion'] as const;
+export const DEPOSIT_TYPES = ['fixed', 'percent'] as const;
 
 export const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'declined', 'expired', 'paid'] as const;
 export const INVOICE_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'cancelled'] as const;

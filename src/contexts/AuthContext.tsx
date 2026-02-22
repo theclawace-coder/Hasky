@@ -1,7 +1,5 @@
 ﻿import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -10,19 +8,7 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { Company, Profile } from '../types';
-
-interface AuthContextValue {
-  user: User | null;
-  profile: Profile | null;
-  company: Company | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  isPlatformAdmin: boolean;
-  signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+import { AuthContext, type AuthContextValue } from './auth-context';
 
 const profileSelect = `
   id,
@@ -120,12 +106,4 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuthContext = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuthContext must be used within AuthProvider');
-  }
-  return context;
 };

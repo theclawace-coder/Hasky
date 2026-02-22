@@ -1,8 +1,9 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { LandingLayout, ctaBtnClass, ctaBtnStyle } from '../../components/landing/LandingLayout';
+import { LandingLayout } from '../../components/landing/LandingLayout';
+import { ctaBtnClass, ctaBtnStyle } from '../../components/landing/ctaStyles';
 
-// ── Shared App Chrome ──────────────────────────────────────────────────────
+// â”€â”€ Shared App Chrome â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function AppChrome({ children }: { children: React.ReactNode }) {
   return (
@@ -31,16 +32,16 @@ function AppChrome({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── Fleet Screenshot ───────────────────────────────────────────────────────
+// â”€â”€ Fleet Screenshot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function FleetScreenshot() {
   const machines = [
-    { name: 'Bobcat S650', type: 'Skid Steer · 2022', rate: '$480/day', status: 'Available', stripColor: '#10b981', badgeStyle: { background: '#ecfdf5', color: '#065f46' } },
-    { name: '20T Excavator', type: 'Komatsu PC200 · 2021', rate: '$1,200/day', status: 'On Hire', stripColor: '#8b5cf6', badgeStyle: { background: '#f5f3ff', color: '#5b21b6' } },
-    { name: '8T Tipper', type: 'Hino 500 · 2023', rate: '$850/day', status: 'Available', stripColor: '#10b981', badgeStyle: { background: '#ecfdf5', color: '#065f46' } },
-    { name: 'Telehandler', type: 'JLG 4017RS · 2020', rate: '$720/day', status: 'Service Due', stripColor: '#f59e0b', badgeStyle: { background: '#fffbeb', color: '#92400e' } },
-    { name: 'Water Cart 5000L', type: 'Custom · 2021', rate: '$380/day', status: 'Available', stripColor: '#10b981', badgeStyle: { background: '#ecfdf5', color: '#065f46' } },
-    { name: 'Roller 14T', type: 'Dynapac CA4000 · 2019', rate: '$680/day', status: 'In Transit', stripColor: '#38bdf8', badgeStyle: { background: '#e0f2fe', color: '#0369a1' } },
+    { name: 'Bobcat S650', type: 'Skid Steer Â· 2022', rate: '$480/day', status: 'Available', stripColor: '#10b981', badgeStyle: { background: '#ecfdf5', color: '#065f46' } },
+    { name: '20T Excavator', type: 'Komatsu PC200 Â· 2021', rate: '$1,200/day', status: 'On Hire', stripColor: '#8b5cf6', badgeStyle: { background: '#f5f3ff', color: '#5b21b6' } },
+    { name: '8T Tipper', type: 'Hino 500 Â· 2023', rate: '$850/day', status: 'Available', stripColor: '#10b981', badgeStyle: { background: '#ecfdf5', color: '#065f46' } },
+    { name: 'Telehandler', type: 'JLG 4017RS Â· 2020', rate: '$720/day', status: 'Service Due', stripColor: '#f59e0b', badgeStyle: { background: '#fffbeb', color: '#92400e' } },
+    { name: 'Water Cart 5000L', type: 'Custom Â· 2021', rate: '$380/day', status: 'Available', stripColor: '#10b981', badgeStyle: { background: '#ecfdf5', color: '#065f46' } },
+    { name: 'Roller 14T', type: 'Dynapac CA4000 Â· 2019', rate: '$680/day', status: 'In Transit', stripColor: '#38bdf8', badgeStyle: { background: '#e0f2fe', color: '#0369a1' } },
   ];
   return (
     <AppChrome>
@@ -53,7 +54,7 @@ function FleetScreenshot() {
           </div>
         </div>
         <div className="mb-3 flex gap-2 rounded-xl p-2.5" style={{ background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(255,255,255,0.65)', backdropFilter: 'blur(8px)' }}>
-          <div className="flex-1 rounded-lg px-2 py-1 text-[10px] text-slate-400" style={{ background: 'rgba(245,243,255,0.70)' }}>Search machines…</div>
+          <div className="flex-1 rounded-lg px-2 py-1 text-[10px] text-slate-400" style={{ background: 'rgba(245,243,255,0.70)' }}>Search machinesâ€¦</div>
           <div className="rounded-lg px-2 py-1 text-[10px] text-slate-500" style={{ border: '1px solid rgba(200,180,240,0.30)', background: 'rgba(255,255,255,0.80)' }}>All categories</div>
           <div className="rounded-lg px-2 py-1 text-[10px] text-slate-500" style={{ border: '1px solid rgba(200,180,240,0.30)', background: 'rgba(255,255,255,0.80)' }}>All statuses</div>
         </div>
@@ -77,7 +78,7 @@ function FleetScreenshot() {
   );
 }
 
-// ── Jobs/Bookings Screenshot ───────────────────────────────────────────────
+// â”€â”€ Jobs/Bookings Screenshot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function JobsScreenshot() {
   const jobs = [
@@ -125,7 +126,7 @@ function JobsScreenshot() {
   );
 }
 
-// ── CRM Screenshot ─────────────────────────────────────────────────────────
+// â”€â”€ CRM Screenshot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function CRMScreenshot() {
   const customers = [
@@ -141,7 +142,7 @@ function CRMScreenshot() {
         <div className="mb-3 flex items-center justify-between">
           <p className="text-sm font-semibold text-slate-800">Customers</p>
           <div className="flex items-center gap-2">
-            <div className="rounded-lg px-2 py-1 text-[10px] text-slate-400" style={{ background: 'rgba(255,255,255,0.80)', border: '1px solid rgba(200,180,240,0.30)' }}>Search…</div>
+            <div className="rounded-lg px-2 py-1 text-[10px] text-slate-400" style={{ background: 'rgba(255,255,255,0.80)', border: '1px solid rgba(200,180,240,0.30)' }}>Searchâ€¦</div>
             <div className="rounded-lg px-2 py-1 text-[10px] font-bold text-white" style={{ background: 'linear-gradient(135deg,#059669,#0d9488)' }}>+ Add</div>
           </div>
         </div>
@@ -153,7 +154,7 @@ function CRMScreenshot() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-slate-800">{c.name}</p>
-                <p className="text-[9px] text-slate-400">{c.abn} · {c.loc} · {c.jobs} jobs</p>
+                <p className="text-[9px] text-slate-400">{c.abn} Â· {c.loc} Â· {c.jobs} jobs</p>
               </div>
               <p className="text-xs font-bold text-violet-600">{c.val}</p>
             </div>
@@ -164,7 +165,7 @@ function CRMScreenshot() {
   );
 }
 
-// ── Quotes Screenshot ──────────────────────────────────────────────────────
+// â”€â”€ Quotes Screenshot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function QuotesScreenshot() {
   return (
@@ -179,14 +180,14 @@ function QuotesScreenshot() {
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-sky-600">QUOTE #0089</p>
               <p className="text-sm font-bold text-slate-900">Apex Earthworks</p>
-              <p className="text-[10px] text-slate-500">42 Smith St, Melbourne VIC · ABN 55 123 456</p>
+              <p className="text-[10px] text-slate-500">42 Smith St, Melbourne VIC Â· ABN 55 123 456</p>
             </div>
             <span className="rounded-full px-2 py-0.5 text-[9px] font-bold" style={{ background: '#e0f2fe', color: '#0369a1' }}>Sent</span>
           </div>
           <div className="mb-3 space-y-1 border-t border-b py-3" style={{ borderColor: 'rgba(200,180,240,0.20)' }}>
             {[
-              ['Bobcat S650 — 5 days hire', '$2,400.00'],
-              ['Operator (J. Stevens) — 5 days', '$2,250.00'],
+              ['Bobcat S650 â€” 5 days hire', '$2,400.00'],
+              ['Operator (J. Stevens) â€” 5 days', '$2,250.00'],
               ['Delivery & Pickup', '$320.00'],
               ['GST (10%)', '$497.00'],
             ].map(([label, val]) => (
@@ -211,7 +212,7 @@ function QuotesScreenshot() {
   );
 }
 
-// ── Invoice Screenshot ─────────────────────────────────────────────────────
+// â”€â”€ Invoice Screenshot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function InvoiceScreenshot() {
   return (
@@ -229,7 +230,7 @@ function InvoiceScreenshot() {
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-orange-500">INV-0042</p>
               <p className="text-sm font-bold text-slate-900">Smith Constructions</p>
-              <p className="text-[9px] text-slate-400">ABN 12 345 678 · Sydney NSW</p>
+              <p className="text-[9px] text-slate-400">ABN 12 345 678 Â· Sydney NSW</p>
             </div>
             <div className="text-right">
               <span className="rounded-full px-2 py-0.5 text-[9px] font-bold" style={{ background: '#fffbeb', color: '#92400e' }}>Awaiting Payment</span>
@@ -238,9 +239,9 @@ function InvoiceScreenshot() {
           </div>
           <div className="mb-3 space-y-1.5">
             {[
-              ['20T Excavator — 3 days', '$3,600.00'],
+              ['20T Excavator â€” 3 days', '$3,600.00'],
               ['Delivery & Pickup', '$480.00'],
-              ['Operator — J. Stevens (3 days)', '$1,350.00'],
+              ['Operator â€” J. Stevens (3 days)', '$1,350.00'],
               ['GST (10%)', '$543.00'],
             ].map(([l, v]) => (
               <div key={l} className="flex justify-between border-b py-1 text-[10px]" style={{ borderColor: 'rgba(200,180,240,0.12)' }}>
@@ -254,7 +255,7 @@ function InvoiceScreenshot() {
             <span className="text-sm font-black text-slate-900">$5,973.00</span>
           </div>
           <div className="flex items-center justify-between rounded-xl px-3 py-2" style={{ background: 'linear-gradient(135deg,rgba(245,243,255,0.90),rgba(224,242,254,0.90))', border: '1px solid rgba(139,92,246,0.20)' }}>
-            <span className="text-[10px] font-bold text-violet-700">💳 Pay by card online</span>
+            <span className="text-[10px] font-bold text-violet-700">ðŸ’³ Pay by card online</span>
             <span className="text-[9px] text-slate-400">Powered by Stripe</span>
           </div>
         </div>
@@ -263,7 +264,7 @@ function InvoiceScreenshot() {
   );
 }
 
-// ── Reports Screenshot ─────────────────────────────────────────────────────
+// â”€â”€ Reports Screenshot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ReportsScreenshot() {
   const bars = [
@@ -276,7 +277,7 @@ function ReportsScreenshot() {
   return (
     <AppChrome>
       <div style={{ background: 'linear-gradient(160deg,#fdf4ff 0%,#f5f3ff 40%,#f0f9ff 100%)', padding: '16px' }}>
-        <p className="mb-3 text-sm font-semibold text-slate-800">Reports — February 2025</p>
+        <p className="mb-3 text-sm font-semibold text-slate-800">Reports â€” February 2025</p>
         <div className="mb-3 grid grid-cols-3 gap-2">
           {[
             { label: 'Revenue', val: '$75,100', bg: 'rgba(239,246,255,0.90)', border: '#3b82f6', t: '#1d4ed8' },
@@ -308,7 +309,7 @@ function ReportsScreenshot() {
   );
 }
 
-// ── Feature Section data ───────────────────────────────────────────────────
+// â”€â”€ Feature Section data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const featuresData = [
   {
@@ -318,7 +319,7 @@ const featuresData = [
     labelBorder: 'border-amber-200',
     accentColor: '#f59e0b',
     title: 'Your whole fleet. One screen.',
-    desc: "See every machine at a glance — what's out on hire, what's available, what needs a service. Colour-coded status strips make it instant to read.",
+    desc: "See every machine at a glance â€” what's out on hire, what's available, what needs a service. Colour-coded status strips make it instant to read.",
     points: [
       'Real-time status: Available, On Hire, Under Repair, In Transit',
       'Service due alerts and maintenance history',
@@ -334,7 +335,7 @@ const featuresData = [
     labelBorder: 'border-violet-200',
     accentColor: '#7c3aed',
     title: 'Book jobs. See conflicts. Stay on track.',
-    desc: 'The 4-step booking wizard makes scheduling stupidly simple. Delivery details, operator, dates, machine — done in under a minute. Conflicts are flagged before they happen.',
+    desc: 'The 4-step booking wizard makes scheduling stupidly simple. Delivery details, operator, dates, machine â€” done in under a minute. Conflicts are flagged before they happen.',
     points: [
       '4-step guided new booking wizard',
       'Automatic double-booking conflict detection',
@@ -369,7 +370,7 @@ const featuresData = [
     desc: 'Generate and send professional quotes in seconds. Customers can accept online. Convert accepted quotes to invoices with a single click.',
     points: [
       'Professional branded PDF quotes',
-      'Share via secure public link — no login needed for customers',
+      'Share via secure public link â€” no login needed for customers',
       'Online acceptance by customers',
       'Auto-convert to invoice when accepted',
     ],
@@ -385,7 +386,7 @@ const featuresData = [
     desc: "Send GST-compliant invoices in seconds. Track what's paid, what's overdue. Customers can pay by card directly from the invoice link.",
     points: [
       'GST-compliant invoices with your company branding',
-      'Accept card payments via Stripe — no extra app needed',
+      'Accept card payments via Stripe â€” no extra app needed',
       'Overdue invoice alerts on your dashboard',
       'Shareable public payment link per invoice',
     ],
@@ -402,18 +403,18 @@ const featuresData = [
     points: [
       'Profit & Loss by month or financial quarter',
       'GST collected and paid summary ready for BAS',
-      'Revenue by machine — identify your best performers',
+      'Revenue by machine â€” identify your best performers',
       'Expense tracking across 12 categories',
     ],
     screenshot: <ReportsScreenshot />,
   },
 ];
 
-// ── Animation variants ─────────────────────────────────────────────────────
+// â”€â”€ Animation variants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const } },
 };
 
 const stagger = {
@@ -421,12 +422,12 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.08 } },
 };
 
-// ── Page ──────────────────────────────────────────────────────────────────
+// â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function FeaturesPage() {
   return (
     <LandingLayout>
-      {/* ── Hero ──────────────────────────────────────────────────────── */}
+      {/* â”€â”€ Hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 pb-16 pt-24 text-center lg:px-12 lg:pt-32">
         <motion.div
           className="mx-auto max-w-3xl"
@@ -464,19 +465,19 @@ export default function FeaturesPage() {
           </motion.h1>
 
           <motion.p variants={fadeUp} className="mx-auto mb-8 max-w-xl text-lg text-slate-500">
-            Everything a machinery hire business needs — fleet, jobs, CRM, quotes, invoices, and
+            Everything a machinery hire business needs â€” fleet, jobs, CRM, quotes, invoices, and
             reports. All built specifically for Australian operators. All free.
           </motion.p>
 
           <motion.div variants={fadeUp}>
             <Link to="/signup" className={ctaBtnClass} style={{ ...ctaBtnStyle, fontSize: '1rem', padding: '0.875rem 2.5rem', borderRadius: '1rem' }}>
-              Get started for free →
+              Get started for free â†’
             </Link>
           </motion.div>
         </motion.div>
       </section>
 
-      {/* ── Feature sections ──────────────────────────────────────────── */}
+      {/* â”€â”€ Feature sections â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="space-y-0">
         {featuresData.map((feature, i) => (
           <section key={feature.label} className="px-6 py-20 lg:px-12">
@@ -505,7 +506,7 @@ export default function FeaturesPage() {
                         className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-white text-[10px]"
                         style={{ background: feature.accentColor }}
                       >
-                        ✓
+                        âœ“
                       </span>
                       {p}
                     </li>
@@ -522,7 +523,7 @@ export default function FeaturesPage() {
         ))}
       </div>
 
-      {/* ── CTA section ───────────────────────────────────────────────── */}
+      {/* â”€â”€ CTA section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 py-24 text-center lg:px-12">
         <motion.div
           className="relative mx-auto max-w-2xl overflow-hidden rounded-3xl px-8 py-16"
@@ -557,7 +558,7 @@ export default function FeaturesPage() {
             Every feature above, all yours. No subscription, no credit card, no catches. Ever.
           </p>
           <Link to="/signup" className={ctaBtnClass} style={{ ...ctaBtnStyle, fontSize: '1rem', padding: '0.875rem 2.5rem', borderRadius: '1rem' }}>
-            Create your free account →
+            Create your free account â†’
           </Link>
           <p className="mt-5 text-sm text-slate-400">Takes less than 2 minutes to set up.</p>
         </motion.div>
@@ -565,3 +566,5 @@ export default function FeaturesPage() {
     </LandingLayout>
   );
 }
+
+

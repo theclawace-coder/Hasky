@@ -1,12 +1,13 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Mail, MapPin, Clock } from 'lucide-react';
-import { LandingLayout, ctaBtnClass, ctaBtnStyle } from '../../components/landing/LandingLayout';
+import { LandingLayout } from '../../components/landing/LandingLayout';
+import { ctaBtnClass, ctaBtnStyle } from '../../components/landing/ctaStyles';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const } },
 };
 
 const stagger = {
@@ -33,12 +34,12 @@ export default function ContactPage() {
 
   return (
     <LandingLayout>
-      {/* ── Hero + form ───────────────────────────────────────────────── */}
+      {/* â”€â”€ Hero + form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 pb-16 pt-24 lg:px-12 lg:pt-32">
         <div className="mx-auto max-w-6xl">
           <div className="grid gap-16 lg:grid-cols-2 lg:items-start">
 
-            {/* ── Left column ─────────────────────────────────────────── */}
+            {/* â”€â”€ Left column â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <motion.div initial="hidden" animate="visible" variants={stagger}>
               <motion.div variants={fadeUp}>
                 <span
@@ -78,7 +79,7 @@ export default function ContactPage() {
                     icon: MapPin,
                     color: '#0284c7',
                     title: 'Based in',
-                    body: <p className="text-sm text-slate-500">Australia 🇦🇺</p>,
+                    body: <p className="text-sm text-slate-500">Australia ðŸ‡¦ðŸ‡º</p>,
                   },
                   {
                     icon: Clock,
@@ -143,14 +144,14 @@ export default function ContactPage() {
                         <p className="text-sm font-semibold text-slate-800">{l.label}</p>
                         <p className="text-xs text-slate-400">{l.sub}</p>
                       </div>
-                      <span className="text-slate-400">→</span>
+                      <span className="text-slate-400">â†’</span>
                     </Link>
                   ))}
                 </div>
               </motion.div>
             </motion.div>
 
-            {/* ── Right column — contact form ─────────────────────────── */}
+            {/* â”€â”€ Right column â€” contact form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <motion.div
               className="relative overflow-hidden rounded-3xl"
               initial={{ opacity: 0, y: 40 }}
@@ -177,7 +178,7 @@ export default function ContactPage() {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.35 }}
                   >
-                    <div className="mb-4 text-6xl">✅</div>
+                    <div className="mb-4 text-6xl">âœ…</div>
                     <h2 className="mb-2 text-2xl font-black text-slate-900">Message sent!</h2>
                     <p className="mb-6 text-slate-500">We'll get back to you within one business day.</p>
                     <button
@@ -254,7 +255,7 @@ export default function ContactPage() {
                         className={`w-full py-3 text-center font-bold ${ctaBtnClass}`}
                         style={{ ...ctaBtnStyle, borderRadius: '0.75rem' }}
                       >
-                        Send message →
+                        Send message â†’
                       </button>
                     </form>
                   </>
@@ -265,7 +266,7 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* ── FAQ ──────────────────────────────────────────────────────── */}
+      {/* â”€â”€ FAQ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="px-6 py-20 lg:px-12">
         <div className="mx-auto max-w-3xl">
           <motion.div
@@ -292,7 +293,7 @@ export default function ContactPage() {
                 },
                 {
                   q: 'Do I need to install anything?',
-                  a: "No. Hasky is a web app — open it in any browser on your phone, tablet, or desktop. Nothing to download or install.",
+                  a: "No. Hasky is a web app â€” open it in any browser on your phone, tablet, or desktop. Nothing to download or install.",
                 },
                 {
                   q: 'Can I import my existing data?',
@@ -300,7 +301,7 @@ export default function ContactPage() {
                 },
                 {
                   q: 'Can my whole team use it?',
-                  a: 'Yes. You can invite team members with different roles — admin, user, or viewer — from the Settings page.',
+                  a: 'Yes. You can invite team members with different roles â€” admin, user, or viewer â€” from the Settings page.',
                 },
                 {
                   q: 'I found a bug / have a feature request.',
@@ -329,3 +330,5 @@ export default function ContactPage() {
     </LandingLayout>
   );
 }
+
+

@@ -52,6 +52,18 @@ export function InvoicePreview({ company, customer, invoice, items }: InvoicePre
         <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(invoice.subtotal)}</span></div>
         <div className="flex justify-between"><span>GST (10%)</span><span>{formatCurrency(invoice.gst)}</span></div>
         <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-semibold"><span>Total</span><span>{formatCurrency(invoice.total)}</span></div>
+        {Number(invoice.paid_amount ?? 0) > 0 ? (
+          <>
+            <div className="flex justify-between text-emerald-600">
+              <span>Amount Paid</span>
+              <span>- {formatCurrency(Number(invoice.paid_amount))}</span>
+            </div>
+            <div className="flex justify-between border-t border-slate-300 pt-2 text-base font-bold text-slate-900">
+              <span>Balance Due</span>
+              <span>{formatCurrency(Math.max(invoice.total - Number(invoice.paid_amount), 0))}</span>
+            </div>
+          </>
+        ) : null}
       </div>
       <p className="mt-6 text-sm text-slate-600">{invoice.notes || 'Thank you for your business.'}</p>
     </div>
