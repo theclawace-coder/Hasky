@@ -9,7 +9,7 @@ import {
   upsertBooking,
   updateBookingAndMachineStatus,
 } from '../services/api';
-import type { Booking, BookingChargeItem } from '../types';
+import type { Booking, BookingChargeItem, BookingMachine } from '../types';
 
 export function useBookings(filters?: {
   status?: string;
@@ -31,10 +31,12 @@ export function useBookings(filters?: {
     mutationFn: ({
       payload,
       chargeItems,
+      bookingMachines,
     }: {
       payload: Partial<Booking>;
       chargeItems?: Array<Pick<BookingChargeItem, 'description' | 'quantity' | 'unit_price'>>;
-    }) => upsertBooking(payload, chargeItems ?? []),
+      bookingMachines?: Array<Pick<BookingMachine, 'machine_id' | 'machine_order' | 'rate_type' | 'rate_amount'>>;
+    }) => upsertBooking(payload, chargeItems ?? [], bookingMachines ?? []),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['bookings'] });
       void queryClient.invalidateQueries({ queryKey: ['machines'] });

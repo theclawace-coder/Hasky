@@ -5,9 +5,9 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ArrowRight, Building2, ChevronLeft, CreditCard, FileText } from 'lucide-react';
-import { getCompanySettings, upsertCompanySettings } from '../../../services/api';
+import { getCompanySettings, removeCompanyLogoObject, uploadCompanyLogo, upsertCompanySettings } from '../../../services/api';
 import { useAuthContext } from '../../../contexts/auth-context';
-import type { BookingChargeTemplate } from '../../../types';
+import { supabase } from '../../../lib/supabase';
 
 const schema = z.object({
   payment_terms_days: z.number().int().min(1).max(120),
@@ -25,11 +25,6 @@ interface Props {
 }
 
 const TERM_OPTIONS = [7, 14, 30, 60] as const;
-const CHARGE_PRESETS: BookingChargeTemplate[] = [
-  { description: 'Delivery', quantity: 1, unit_price: 120 },
-  { description: 'Pickup', quantity: 1, unit_price: 120 },
-  { description: 'Attachment Hire', quantity: 1, unit_price: 85 },
-];
 
 const glassInput =
   'w-full rounded-xl border border-slate-200/80 bg-white/60 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 backdrop-blur-sm transition-all focus:border-violet-400/60 focus:outline-none focus:ring-2 focus:ring-violet-400/20';
@@ -43,8 +38,8 @@ const cardStyle = {
 };
 
 export function BusinessStep({ onNext, onBack }: Props) {
-  const { company } = useAuthContext();
-  const [defaultCharges, setDefaultCharges] = useState<BookingChargeTemplate[]>([]);
+  const { company, refreshProfile } = useAuthContext();
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const { data: existingSettings } = useQuery({
     queryKey: ['company-settings'],
@@ -72,7 +67,6 @@ export function BusinessStep({ onNext, onBack }: Props) {
     setValue('bank_bsb', existingSettings.bank_bsb ?? '');
     setValue('bank_account_number', existingSettings.bank_account_number ?? '');
     setValue('default_invoice_notes', existingSettings.default_invoice_notes ?? 'Thank you for your business.');
-    setDefaultCharges(existingSettings.default_booking_charges ?? []);
   }, [existingSettings, setValue]);
 
   const terms = useWatch({ control, name: 'payment_terms_days' }) ?? 14;
@@ -81,13 +75,13 @@ export function BusinessStep({ onNext, onBack }: Props) {
     mutationFn: (values: FormValues) =>
       upsertCompanySettings({
         ...(existingSettings?.id ? { id: existingSettings.id } : {}),
+        ...(company?.id ? { company_id: company.id } : {}),
         payment_terms_days: values.payment_terms_days,
         bank_account_name: values.bank_account_name ?? null,
         bank_bsb: values.bank_bsb ?? null,
         bank_account_number: values.bank_account_number ?? null,
         default_invoice_notes: values.default_invoice_notes ?? null,
-        default_booking_charges: defaultCharges,
-        allow_cross_hire: existingSettings?.allow_cross_hire ?? false,
+        allow_cross_hire: true,
       }),
     onSuccess: () => onNext(),
     onError: () => {
@@ -95,6 +89,46 @@ export function BusinessStep({ onNext, onBack }: Props) {
       onNext();
     },
   });
+
+  const handleLogoUpload = async (file: File | null) => {
+    if (!file || !company?.id) {
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      const nextLogoUrl = await uploadCompanyLogo(file, company.id);
+      const { error } = await supabase.from('companies').update({ logo_url: nextLogoUrl }).eq('id', company.id);
+      if (error) {
+        throw new Error(error.message);
+      }
+      await refreshProfile();
+      toast.success('Logo uploaded');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not upload logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!company?.id) {
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      await removeCompanyLogoObject(company.logo_url);
+      const { error } = await supabase.from('companies').update({ logo_url: null }).eq('id', company.id);
+      if (error) {
+        throw new Error(error.message);
+      }
+      await refreshProfile();
+      toast.success('Logo removed');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not remove logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-24">
@@ -131,6 +165,49 @@ export function BusinessStep({ onNext, onBack }: Props) {
                 <span className="ml-auto rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-semibold text-emerald-600">
                   Active
                 </span>
+              </div>
+            ) : null}
+
+            {company ? (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-600">
+                  Company Logo
+                </label>
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/70 p-3">
+                  <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white">
+                    {company.logo_url ? (
+                      <img src={company.logo_url} alt={`${company.name} logo`} className="h-full w-full object-contain" />
+                    ) : (
+                      <span className="text-xs text-slate-400">No logo</span>
+                    )}
+                  </div>
+                  <label className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                    {uploadingLogo ? 'Uploading…' : 'Upload Logo'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="hidden"
+                      disabled={uploadingLogo}
+                      onChange={(event) => {
+                        void handleLogoUpload(event.target.files?.[0] ?? null);
+                        event.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+                  {company.logo_url ? (
+                    <button
+                      type="button"
+                      disabled={uploadingLogo}
+                      onClick={() => void handleRemoveLogo()}
+                      className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-60"
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+                <p className="mt-1.5 text-xs text-slate-400">
+                  We’ll include this on invoices and quotes.
+                </p>
               </div>
             ) : null}
 
@@ -200,42 +277,6 @@ export function BusinessStep({ onNext, onBack }: Props) {
               />
               <p className="mt-1.5 text-xs text-slate-400">
                 Appears at the bottom of every invoice
-              </p>
-            </div>
-
-            <div>
-              <label className="mb-3 block text-sm font-medium text-slate-600">
-                Default Job Extras
-              </label>
-              <div className="grid gap-2 sm:grid-cols-3">
-                {CHARGE_PRESETS.map((preset) => {
-                  const active = defaultCharges.some((item) => item.description === preset.description);
-                  return (
-                    <button
-                      key={preset.description}
-                      type="button"
-                      onClick={() =>
-                        setDefaultCharges((state) =>
-                          active
-                            ? state.filter((item) => item.description !== preset.description)
-                            : [...state, preset],
-                        )
-                      }
-                      className={[
-                        'rounded-xl border px-3 py-2 text-left text-xs transition-colors',
-                        active
-                          ? 'border-violet-300 bg-violet-50 text-violet-700'
-                          : 'border-slate-200 bg-white/60 text-slate-600',
-                      ].join(' ')}
-                    >
-                      <p className="font-semibold">{preset.description}</p>
-                      <p className="mt-0.5 text-[11px]">${preset.unit_price.toFixed(2)} default</p>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-1.5 text-xs text-slate-400">
-                Selected extras will prefill new jobs. You can edit amounts per job.
               </p>
             </div>
 

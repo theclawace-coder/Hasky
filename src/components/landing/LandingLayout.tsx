@@ -152,20 +152,37 @@ export function LandingLayout({ children }: { children: React.ReactNode }) {
       >
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
-            <div>
+            <div className="max-w-xs">
               <div className="mb-3 flex items-center gap-2.5">
                 <div className="flex size-9 items-center justify-center rounded-xl font-black text-white text-sm" style={{ background: 'linear-gradient(135deg, #c084fc, #818cf8, #38bdf8)' }}>H</div>
                 <span className="text-lg font-black tracking-tight text-slate-900">Hasky</span>
               </div>
-              <p className="text-sm text-slate-500">Australia's only completely free machinery CRM.</p>
-              <p className="mt-1 text-xs text-slate-400">hasky.com.au · Made in Australia 🇦🇺</p>
+              <p className="text-sm text-slate-500">Australia's only completely free machinery CRM. Fleet management, job scheduling, invoicing, and reports — all in one app.</p>
+              <p className="mt-2 text-xs text-slate-400">hasky.com.au · Made in Australia</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {['Free forever', 'No credit card', 'Unlimited machines'].map((tag) => (
+                  <span key={tag} className="rounded-full px-2.5 py-1 text-[10px] font-semibold text-violet-600" style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.15)' }}>{tag}</span>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-12 sm:gap-16">
+            <div className="flex flex-wrap gap-12 sm:gap-16">
               <div>
                 <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">Product</p>
                 <div className="space-y-2">
-                  {[{ to: '/features', l: 'Features' }, { to: '/how-it-works', l: 'How it works' }, { to: '/pricing', l: 'Pricing' }].map(({ to, l }) => (
+                  {[
+                    { to: '/features', l: 'Features' },
+                    { to: '/how-it-works', l: 'How it works' },
+                    { to: '/pricing', l: 'Pricing' },
+                  ].map(({ to, l }) => (
                     <Link key={to} to={to} className="block text-sm text-slate-500 hover:text-slate-900">{l}</Link>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">Features</p>
+                <div className="space-y-2">
+                  {['Fleet Management', 'Job Scheduling', 'Invoicing', 'Quotes', 'Reports & BAS', 'Fleet Map'].map((f) => (
+                    <Link key={f} to="/features" className="block text-sm text-slate-500 hover:text-slate-900">{f}</Link>
                   ))}
                 </div>
               </div>
@@ -185,8 +202,15 @@ export function LandingLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </div>
-          <div className="mt-10 border-t pt-8 text-center text-xs text-slate-400" style={{ borderColor: 'rgba(200,180,230,0.30)' }}>
-            © 2025 Hasky Pty Ltd. All rights reserved.
+          <div className="mt-10 border-t pt-8" style={{ borderColor: 'rgba(200,180,230,0.30)' }}>
+            <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+              <p className="text-xs text-slate-400">© 2025 Hasky Pty Ltd. All rights reserved.</p>
+              <div className="flex items-center gap-4 text-xs text-slate-400">
+                <span>Powered by Supabase & Stripe</span>
+                <span>·</span>
+                <span>Built for Australian tradies</span>
+              </div>
+            </div>
           </div>
         </div>
       </footer>

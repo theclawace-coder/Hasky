@@ -202,8 +202,42 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @media print {
-  .no-print { display: none !important; }
-  .print-surface { box-shadow: none !important; border: none !important; }
+  .no-print,
+  #sidebar,
+  .mobile-bottom-nav,
+  [data-topbar] { display: none !important; }
+
+  *, *::before, *::after { background-attachment: initial !important; }
+  body, html { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .print-surface {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    border-radius: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Remove sidebar offset and padding on the layout wrapper */
+  [data-layout-content] {
+    padding-left: 0 !important;
+    margin: 0 !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hide ambient blobs */
+  .animate-blob, .animate-blob-2, .animate-blob-3 { display: none !important; }
+
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
 }
 
 /* ─── Onboarding Animations (preserved) ─────────────────────────── */

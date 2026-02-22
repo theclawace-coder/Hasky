@@ -76,9 +76,18 @@ Deno.serve(async (req) => {
       const paidDate = new Date().toISOString().slice(0, 10);
 
       if (documentType === 'invoice' && invoiceId) {
+        const { data: inv } = await adminClient
+          .from('invoices')
+          .select('total')
+          .eq('id', invoiceId)
+          .maybeSingle();
         const { error } = await adminClient
           .from('invoices')
-          .update({ status: 'paid', paid_date: paidDate })
+          .update({
+            status: 'paid',
+            paid_date: paidDate,
+            paid_amount: Number(inv?.total ?? 0),
+          })
           .eq('id', invoiceId);
 
         if (error) {

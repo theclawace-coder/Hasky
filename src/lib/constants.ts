@@ -1,4 +1,4 @@
-﻿export const AU_STATES = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'] as const;
+export const AU_STATES = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'] as const;
 
 export const MACHINE_STATUSES = [
   'available',
@@ -22,7 +22,7 @@ export const PAYMENT_PLANS = ['deposit', 'upfront', 'on_completion'] as const;
 export const DEPOSIT_TYPES = ['fixed', 'percent'] as const;
 
 export const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'declined', 'expired', 'paid'] as const;
-export const INVOICE_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'cancelled'] as const;
+export const INVOICE_STATUSES = ['draft', 'sent', 'partially_paid', 'paid', 'overdue', 'cancelled'] as const;
 
 export const DEAL_STATUSES = [
   'lead',
@@ -90,6 +90,7 @@ export const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-700 border-red-200',
   draft: 'bg-slate-100 text-slate-700 border-slate-200',
   sent: 'bg-blue-100 text-blue-700 border-blue-200',
+  partially_paid: 'bg-amber-100 text-amber-700 border-amber-200',
   paid: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   overdue: 'bg-red-100 text-red-700 border-red-200',
   accepted: 'bg-emerald-100 text-emerald-700 border-emerald-200',

@@ -150,7 +150,7 @@ export default function InvoiceDetail() {
     }
   };
 
-  const canPayOnline = invoice.status === 'sent' || invoice.status === 'overdue';
+  const canPayOnline = invoice.status === 'sent' || invoice.status === 'overdue' || invoice.status === 'partially_paid';
   const isPaid = invoice.status === 'paid' || invoice.status === 'cancelled';
   const alreadyPaid = Number(invoice.paid_amount ?? 0);
   const outstanding = Math.max(invoice.total - alreadyPaid, 0);

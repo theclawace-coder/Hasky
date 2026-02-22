@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
@@ -8,7 +8,9 @@ import {
   getStripeConfigStatus,
   getTeamInvites,
   inviteTeamMember,
+  removeCompanyLogoObject,
   saveStripeConfig,
+  uploadCompanyLogo,
   upsertCompanySettings,
   upsertProfile,
 } from '../../services/api';
@@ -23,7 +25,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { formatDate } from '../../lib/utils';
 import type { Profile, TeamInvite } from '../../types';
 
-const tabs = ['Company Profile', 'Team Members', 'Cross-Hire Preferences', 'Invoice Settings', 'My Profile'] as const;
+const tabs = ['Company Profile', 'Team Members', 'Invoice Settings', 'My Profile'] as const;
 type Tab = (typeof tabs)[number];
 type TeamRole = Profile['role'];
 
@@ -60,6 +62,8 @@ export default function Settings() {
   const { user, profile, company, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('Company Profile');
+  const companyLogoInputRef = useRef<HTMLInputElement | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   const settingsQuery = useQuery({
     queryKey: ['company_settings'],
@@ -115,7 +119,7 @@ export default function Settings() {
 
   const settingsDefaults = useMemo<SettingsFormState>(
     () => ({
-      allow_cross_hire: settingsQuery.data?.allow_cross_hire ?? true,
+      allow_cross_hire: true,
       payment_terms_days: settingsQuery.data?.payment_terms_days ?? 14,
       bank_bsb: settingsQuery.data?.bank_bsb ?? '',
       bank_account_number: settingsQuery.data?.bank_account_number ?? '',
@@ -150,9 +154,29 @@ export default function Settings() {
       if (!company?.id) {
         throw new Error('Company not found');
       }
-      const { error } = await supabase.from('companies').update(companyForm).eq('id', company.id);
+      const normalizedName = companyForm.name.trim();
+      const normalizedEmail = companyForm.email.trim();
+      const normalizedAbn = companyForm.abn.trim();
+      if (!normalizedName) {
+        throw new Error('Company name is required');
+      }
+      if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        throw new Error('Please enter a valid company email');
+      }
+      if (normalizedAbn && !/^\d{11}$/.test(normalizedAbn.replace(/\s/g, ''))) {
+        throw new Error('ABN must be 11 digits');
+      }
+      const { error, data } = await supabase.from('companies').update({
+        ...companyForm,
+        name: normalizedName,
+        email: normalizedEmail || null,
+        abn: normalizedAbn || null,
+      }).eq('id', company.id).select();
       if (error) {
         throw new Error(error.message);
+      }
+      if (!data || data.length === 0) {
+        throw new Error('Save failed — please try signing out and back in');
       }
     },
     onSuccess: async () => {
@@ -160,7 +184,53 @@ export default function Settings() {
       setCompanyFormDraft(null);
       toast.success('Company updated');
     },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to save company');
+    },
   });
+
+  const handleUploadCompanyLogo = async (file: File | null) => {
+    if (!file || !company?.id) {
+      return;
+    }
+    setIsUploadingLogo(true);
+    try {
+      const nextLogoUrl = await uploadCompanyLogo(file, company.id);
+      const { error } = await supabase.from('companies').update({ logo_url: nextLogoUrl }).eq('id', company.id);
+      if (error) {
+        throw new Error(error.message);
+      }
+      await refreshProfile();
+      toast.success('Company logo updated');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not upload logo');
+    } finally {
+      setIsUploadingLogo(false);
+      if (companyLogoInputRef.current) {
+        companyLogoInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveCompanyLogo = async () => {
+    if (!company?.id) {
+      return;
+    }
+    setIsUploadingLogo(true);
+    try {
+      await removeCompanyLogoObject(company.logo_url);
+      const { error } = await supabase.from('companies').update({ logo_url: null }).eq('id', company.id);
+      if (error) {
+        throw new Error(error.message);
+      }
+      await refreshProfile();
+      toast.success('Company logo removed');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not remove logo');
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
 
   const saveSettingsMutation = useMutation({
     mutationFn: async () => {
@@ -173,6 +243,9 @@ export default function Settings() {
       void queryClient.invalidateQueries({ queryKey: ['company_settings'] });
       setSettingsFormDraft(null);
       toast.success('Settings updated');
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to save settings');
     },
   });
 
@@ -225,6 +298,9 @@ export default function Settings() {
       setProfileFormDraft(null);
       toast.success('Profile updated');
     },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to save profile');
+    },
   });
 
   const teamMembers = useMemo(
@@ -247,6 +323,40 @@ export default function Settings() {
       {tab === 'Company Profile' ? (
         <Card className="space-y-4">
           <h3 className="text-lg font-semibold text-slate-900">Company Profile</h3>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-medium text-slate-700">Company Logo</p>
+            <p className="mt-1 text-xs text-slate-500">Shown on quotes and invoices.</p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white">
+                {company?.logo_url ? (
+                  <img src={company.logo_url} alt={`${company.name} logo`} className="h-full w-full object-contain" />
+                ) : (
+                  <span className="text-xs text-slate-400">No logo</span>
+                )}
+              </div>
+              <input
+                ref={companyLogoInputRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                className="hidden"
+                onChange={(event) => {
+                  void handleUploadCompanyLogo(event.target.files?.[0] ?? null);
+                }}
+              />
+              <Button
+                variant="secondary"
+                loading={isUploadingLogo}
+                onClick={() => companyLogoInputRef.current?.click()}
+              >
+                Upload Logo
+              </Button>
+              {company?.logo_url ? (
+                <Button variant="ghost" disabled={isUploadingLogo} onClick={() => void handleRemoveCompanyLogo()}>
+                  Remove
+                </Button>
+              ) : null}
+            </div>
+          </div>
           <div className="grid gap-3 md:grid-cols-2">
             <Input value={companyForm.name} onChange={(e) => setCompanyForm((s) => ({ ...s, name: e.target.value }))} placeholder="Company name" />
             <Input value={companyForm.abn ?? ''} onChange={(e) => setCompanyForm((s) => ({ ...s, abn: e.target.value }))} placeholder="ABN" />
@@ -339,20 +449,6 @@ export default function Settings() {
             </div>
           </Card>
         </div>
-      ) : null}
-
-      {tab === 'Cross-Hire Preferences' ? (
-        <Card className="space-y-4">
-          <h3 className="text-lg font-semibold text-slate-900">Cross-Hire Preferences</h3>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" checked={settingsForm.allow_cross_hire} onChange={(event) => setSettingsForm((state) => ({ ...state, allow_cross_hire: event.target.checked }))} />
-            Allow cross-hire
-          </label>
-          <p className="text-sm text-slate-600">When enabled, your available machines can be surfaced to the platform admin for brokerage deals.</p>
-          <div className="flex justify-end">
-            <Button onClick={() => saveSettingsMutation.mutate()} loading={saveSettingsMutation.isPending}>Save Preferences</Button>
-          </div>
-        </Card>
       ) : null}
 
       {tab === 'Invoice Settings' ? (

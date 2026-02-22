@@ -53,7 +53,7 @@ export function Layout({ children }: PropsWithChildren) {
 
       <Sidebar onHelpClick={() => setWikiOpen(true)} />
 
-      <div className={cn('transition-all duration-300 lg:pl-64', sidebarCollapsed && 'lg:pl-[72px]')}>
+      <div data-layout-content className={cn('transition-all duration-300 lg:pl-64', sidebarCollapsed && 'lg:pl-[72px]')}>
         <TopBar
           onTourClick={() => launchTour()}
           onWikiClick={() => setWikiOpen(true)}

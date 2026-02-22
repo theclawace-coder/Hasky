@@ -1,8 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Upload, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { AU_STATES } from '../../lib/constants';
+import { uploadDocument } from '../../services/api';
 import { AddressAutocomplete } from '../ui/AddressAutocomplete';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -20,6 +23,8 @@ const schema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   notes: z.string().optional(),
+  drivers_licence_number: z.string().optional(),
+  drivers_licence_image_url: z.string().optional(),
 });
 
 export type CustomerFormValues = z.infer<typeof schema>;
@@ -31,6 +36,9 @@ interface CustomerFormProps {
 }
 
 export function CustomerForm({ defaultValues, onSubmit, loading }: CustomerFormProps) {
+  const [licenceFile, setLicenceFile] = useState<File | null>(null);
+  const [uploadingLicence, setUploadingLicence] = useState(false);
+
   const values = useMemo<CustomerFormValues>(
     () => ({
       id: defaultValues?.id,
@@ -43,6 +51,8 @@ export function CustomerForm({ defaultValues, onSubmit, loading }: CustomerFormP
       city: defaultValues?.city ?? '',
       state: defaultValues?.state ?? 'NSW',
       notes: defaultValues?.notes ?? '',
+      drivers_licence_number: defaultValues?.drivers_licence_number ?? '',
+      drivers_licence_image_url: defaultValues?.drivers_licence_image_url ?? '',
     }),
     [defaultValues],
   );
@@ -52,11 +62,28 @@ export function CustomerForm({ defaultValues, onSubmit, loading }: CustomerFormP
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<CustomerFormValues>({
     resolver: zodResolver(schema),
     values,
   });
+
+  const licenceImageUrl = watch('drivers_licence_image_url');
+
+  const handleLicenceUpload = async (file: File) => {
+    setUploadingLicence(true);
+    try {
+      const folder = `licences/${Date.now()}`;
+      const url = await uploadDocument(file, 'customer-docs', folder);
+      setValue('drivers_licence_image_url', url, { shouldDirty: true });
+      setLicenceFile(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to upload licence image');
+    } finally {
+      setUploadingLicence(false);
+    }
+  };
 
   return (
     <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
@@ -117,6 +144,48 @@ export function CustomerForm({ defaultValues, onSubmit, loading }: CustomerFormP
             </option>
           ))}
         </Select>
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-slate-700">Drivers Licence Number</label>
+        <Input {...register('drivers_licence_number')} placeholder="e.g. 12345678" />
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-slate-700">Drivers Licence Image</label>
+        {licenceImageUrl ? (
+          <div className="flex items-center gap-2">
+            <a
+              href={licenceImageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="truncate text-sm text-violet-600 underline"
+            >
+              View licence
+            </a>
+            <button
+              type="button"
+              onClick={() => setValue('drivers_licence_image_url', '', { shouldDirty: true })}
+              className="text-slate-400 hover:text-red-500"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        ) : (
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-500 hover:border-violet-300 hover:bg-violet-50/30">
+            <Upload className="size-4" />
+            {uploadingLicence ? 'Uploading…' : 'Upload licence image / PDF'}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,application/pdf"
+              className="hidden"
+              disabled={uploadingLicence}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleLicenceUpload(file);
+                e.currentTarget.value = '';
+              }}
+            />
+          </label>
+        )}
       </div>
       <div className="md:col-span-2">
         <label className="mb-1 block text-sm font-medium text-slate-700">Notes</label>

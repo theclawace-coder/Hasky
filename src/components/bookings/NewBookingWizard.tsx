@@ -29,12 +29,14 @@ import type { BookingChargeTemplate, Customer, Machine } from '../../types';
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export interface WizardValues {
-  machine: Machine | null;
+  machines: Machine[];
+  /** Per-machine rate amount overrides: machineId → rateAmount */
+  machineRates: Record<string, number>;
   customer: Customer | null;
   startDate: string;
   endDate: string;
+  /** Shared rate type across all machines (daily, weekly, etc.) */
   rateType: string;
-  rateAmount: number;
   deliveryAddress: string;
   deliveryLat: number | null;
   deliveryLng: number | null;
@@ -50,6 +52,7 @@ interface ConflictingBooking {
   start_date: string;
   end_date: string | null;
   status: string;
+  booking_machines?: Array<{ machine_id: string }>;
 }
 
 interface NewBookingWizardProps {
@@ -171,6 +174,18 @@ function ReviewRow({
   );
 }
 
+// ── Helper: get rate amount for a machine at the given rate type ───────────────
+
+function getMachineRate(machine: Machine, rateType: string): number {
+  const rateMap: Record<string, number> = {
+    daily:   Number(machine.daily_rate ?? 0),
+    weekly:  Number(machine.weekly_rate ?? 0),
+    monthly: Number(machine.monthly_rate ?? 0),
+    hourly:  Number(machine.hourly_rate ?? 0),
+  };
+  return rateMap[rateType] ?? Number(machine.daily_rate ?? 0);
+}
+
 // ── Main wizard ────────────────────────────────────────────────────────────────
 
 export function NewBookingWizard({
@@ -195,12 +210,14 @@ export function NewBookingWizard({
   const [showExtra, setShowExtra] = useState(false);
 
   const [values, setValues] = useState<WizardValues>({
-    machine: defaultMachine,
+    machines: defaultMachine ? [defaultMachine] : [],
+    machineRates: defaultMachine
+      ? { [defaultMachine.id]: Number(defaultMachine.daily_rate ?? 0) }
+      : {},
     customer: null,
     startDate: defaultStartDate ?? '',
     endDate: '',
     rateType: 'daily',
-    rateAmount: defaultMachine ? Number(defaultMachine.daily_rate ?? 0) : 0,
     deliveryAddress: '',
     deliveryLat: null,
     deliveryLng: null,
@@ -232,22 +249,25 @@ export function NewBookingWizard({
     [existingBookings, todayDate],
   );
 
-  const selectedMachineId = values.machine?.id ?? null;
+  // Stable key used to detect when selected machines change (avoids direct array dependency).
+  const selectedMachineIdsKey = useMemo(
+    () => values.machines.map((m) => m.id).sort().join(','),
+    [values.machines],
+  );
 
-  // If dates are changed to a conflicting range, force re-selection.
+  // Auto-remove any selected machines that become conflicted when dates change.
   useEffect(() => {
-    if (!selectedMachineId) {
-      return;
-    }
-    if (!conflictedMachineIds.has(selectedMachineId)) {
-      return;
-    }
-    setValues((current) => (
-      current.machine?.id === selectedMachineId
-        ? { ...current, machine: null }
-        : current
-    ));
-  }, [conflictedMachineIds, selectedMachineId]);
+    if (!selectedMachineIdsKey) return;
+    setValues((current) => {
+      const newMachines = current.machines.filter((m) => !conflictedMachineIds.has(m.id));
+      if (newMachines.length === current.machines.length) return current;
+      const newRates = { ...current.machineRates };
+      current.machines
+        .filter((m) => conflictedMachineIds.has(m.id))
+        .forEach((m) => { delete newRates[m.id]; });
+      return { ...current, machines: newMachines, machineRates: newRates };
+    });
+  }, [conflictedMachineIds, selectedMachineIdsKey]);
 
   const filteredCustomers = useMemo(
     () =>
@@ -270,16 +290,19 @@ export function NewBookingWizard({
     );
   }, [values.startDate, values.endDate]);
 
-  const hireSubtotal = values.rateAmount * estimatedDays;
+  const hireSubtotal = useMemo(
+    () => values.machines.reduce((sum, m) => sum + (values.machineRates[m.id] ?? 0) * estimatedDays, 0),
+    [values.machines, values.machineRates, estimatedDays],
+  );
+
   const extrasSubtotal = values.chargeItems.reduce(
     (sum, item) => sum + Number(item.quantity) * Number(item.unit_price),
     0,
   );
   const estimatedTotal = hireSubtotal + extrasSubtotal;
+
   const estimatedDeposit = useMemo(() => {
-    if (values.paymentPlan !== 'deposit') {
-      return 0;
-    }
+    if (values.paymentPlan !== 'deposit') return 0;
     if (values.depositType === 'percent') {
       const boundedPercent = Math.min(Math.max(values.depositValue, 0), 100);
       return (estimatedTotal * boundedPercent) / 100;
@@ -287,33 +310,40 @@ export function NewBookingWizard({
     return Math.max(values.depositValue, 0);
   }, [estimatedTotal, values.paymentPlan, values.depositType, values.depositValue]);
 
-  const handleMachineSelect = (machine: Machine) => {
+  /** Toggle a machine in/out of the selection. */
+  const handleMachineToggle = (machine: Machine) => {
     if (conflictedMachineIds.has(machine.id)) {
       toast.error(`${machine.name} is already booked for those dates. Pick different dates or another machine.`);
       return;
     }
-    const rateMap: Record<string, number> = {
-      daily:   Number(machine.daily_rate ?? 0),
-      weekly:  Number(machine.weekly_rate ?? 0),
-      monthly: Number(machine.monthly_rate ?? 0),
-      hourly:  Number(machine.hourly_rate ?? 0),
-    };
-    setValues((v) => ({
-      ...v,
-      machine,
-      rateAmount: rateMap[v.rateType] ?? Number(machine.daily_rate ?? 0),
-    }));
+    setValues((v) => {
+      const isSelected = v.machines.some((m) => m.id === machine.id);
+      if (isSelected) {
+        const newMachines = v.machines.filter((m) => m.id !== machine.id);
+        const newRates = { ...v.machineRates };
+        delete newRates[machine.id];
+        return { ...v, machines: newMachines, machineRates: newRates };
+      } else {
+        const rate = getMachineRate(machine, v.rateType);
+        return {
+          ...v,
+          machines: [...v.machines, machine],
+          machineRates: { ...v.machineRates, [machine.id]: rate },
+        };
+      }
+    });
   };
 
+  /** When rate type changes, refresh all per-machine rates from machine defaults. */
   const handleRateTypeChange = (type: string) => {
-    const m = values.machine;
-    const rateMap: Record<string, number> = {
-      daily:   Number(m?.daily_rate ?? 0),
-      weekly:  Number(m?.weekly_rate ?? 0),
-      monthly: Number(m?.monthly_rate ?? 0),
-      hourly:  Number(m?.hourly_rate ?? 0),
-    };
-    setValues((v) => ({ ...v, rateType: type, rateAmount: rateMap[type] ?? v.rateAmount }));
+    setValues((v) => {
+      const newRates: Record<string, number> = {};
+      v.machines.forEach((m) => {
+        // Keep any user override if non-zero, else use the machine's default for this type.
+        newRates[m.id] = getMachineRate(m, type);
+      });
+      return { ...v, rateType: type, machineRates: newRates };
+    });
   };
 
   const handleCreateCustomer = async (cv: CustomerFormValues) => {
@@ -321,6 +351,8 @@ export function NewBookingWizard({
     setValues((v) => ({ ...v, customer }));
     setCustomerModalOpen(false);
   };
+
+  const anySelectedConflicted = values.machines.some((m) => conflictedMachineIds.has(m.id));
 
   // ── Step 1: Machine ──────────────────────────────────────────────────────────
 
@@ -330,7 +362,7 @@ export function NewBookingWizard({
         <StepIndicator current={1} />
         <div>
           <h2 className="text-xl font-bold text-slate-900">Choose equipment</h2>
-          <p className="text-sm text-slate-500">Pick dates first to see what's available</p>
+          <p className="text-sm text-slate-500">Pick dates, then select one or more machines</p>
         </div>
 
         {/* Date pickers — selecting here filters machine availability */}
@@ -345,7 +377,6 @@ export function NewBookingWizard({
               onChange={(e) => setValues((v) => ({
                 ...v,
                 startDate: e.target.value,
-                // auto-fill or reset endDate when startDate changes
                 endDate: v.endDate && v.endDate >= e.target.value ? v.endDate : e.target.value,
               }))}
               className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
@@ -370,6 +401,29 @@ export function NewBookingWizard({
           ) : null}
         </div>
 
+        {/* Selected machines summary */}
+        {values.machines.length > 0 && (
+          <div className="flex flex-wrap gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5">
+            <span className="text-xs font-semibold text-violet-600 self-center">Selected:</span>
+            {values.machines.map((m) => (
+              <span
+                key={m.id}
+                className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-1 text-xs font-semibold text-white"
+              >
+                {m.name}
+                <button
+                  type="button"
+                  onClick={() => handleMachineToggle(m)}
+                  className="ml-1 hover:text-violet-200"
+                  aria-label={`Remove ${m.name}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
         {bookableMachines.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 py-16 text-center">
             <Truck className="size-10 text-slate-300" />
@@ -385,7 +439,7 @@ export function NewBookingWizard({
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {bookableMachines.map((machine) => {
-              const isSelected = values.machine?.id === machine.id;
+              const isSelected = values.machines.some((m) => m.id === machine.id);
               const isConflicted = values.startDate ? conflictedMachineIds.has(machine.id) : false;
               const photo = machine.photo_urls?.[0];
               return (
@@ -395,7 +449,7 @@ export function NewBookingWizard({
                   data-testid="machine-card"
                   data-machine-id={machine.id}
                   disabled={isConflicted}
-                  onClick={() => handleMachineSelect(machine)}
+                  onClick={() => handleMachineToggle(machine)}
                   className={cn(
                     'relative flex flex-col overflow-hidden rounded-2xl border-2 text-left transition-all active:scale-[0.98]',
                     isConflicted
@@ -448,16 +502,16 @@ export function NewBookingWizard({
 
         {!values.startDate && bookableMachines.length > 0 && (
           <p className="text-center text-xs text-amber-600">
-            Enter a start date above to check machine availability, then select a machine.
+            Enter a start date above to check machine availability, then select one or more machines.
           </p>
         )}
         <WizardNav
           onNext={() => setStep(2)}
           nextDisabled={
-            !values.machine
+            values.machines.length === 0
             || !values.startDate
             || !values.endDate
-            || (values.machine ? conflictedMachineIds.has(values.machine.id) : false)
+            || anySelectedConflicted
           }
           nextLabel="Next: Choose Client"
         />
@@ -568,30 +622,32 @@ export function NewBookingWizard({
         <StepIndicator current={3} />
         <div>
           <h2 className="text-xl font-bold text-slate-900">Job details</h2>
-          <p className="text-sm text-slate-500">Set rate, payment plan, and extras</p>
+          <p className="text-sm text-slate-500">Set rates, payment plan, and extras</p>
         </div>
 
-        {/* Conflict warning: re-check if the selected machine is now conflicted with the chosen dates */}
-        {values.machine && values.startDate && conflictedMachineIds.has(values.machine.id) && (
-          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-            <div className="text-sm">
-              <p className="font-semibold text-amber-800">Date conflict detected</p>
-              <p className="text-amber-700">
-                {values.machine.name} has a confirmed booking overlapping your selected dates.{' '}
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="font-semibold underline hover:no-underline"
-                >
-                  Go back to choose a different machine.
-                </button>
-              </p>
+        {/* Conflict warnings: show one per conflicted selected machine */}
+        {values.machines
+          .filter((m) => conflictedMachineIds.has(m.id))
+          .map((m) => (
+            <div key={m.id} className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              <div className="text-sm">
+                <p className="font-semibold text-amber-800">Date conflict detected</p>
+                <p className="text-amber-700">
+                  {m.name} has a confirmed booking overlapping your selected dates.{' '}
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="font-semibold underline hover:no-underline"
+                  >
+                    Go back to choose a different machine.
+                  </button>
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          ))}
 
-        {/* Dates — show compact summary if set in Step 1, or input fields if missing */}
+        {/* Dates — show compact summary */}
         {values.startDate ? (
           <div className="flex items-center justify-between rounded-xl border border-violet-100 bg-violet-50 px-4 py-3">
             <div>
@@ -640,52 +696,53 @@ export function NewBookingWizard({
           </div>
         )}
 
-        {/* Conflict warning: machine has a confirmed booking overlapping these dates */}
-        {values.startDate && values.machine && conflictedMachineIds.has(values.machine.id) ? (
-          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
-            <div>
-              <p className="text-sm font-semibold text-amber-800">Machine conflict detected</p>
-              <p className="text-xs text-amber-600">
-                {values.machine.name} has a confirmed booking overlapping these dates.{' '}
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="font-semibold underline hover:text-amber-800"
-                >
-                  Go back to choose a different machine.
-                </button>
-              </p>
-            </div>
-          </div>
-        ) : null}
+        {/* Rate type (shared across all machines) */}
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-slate-700">Rate type</label>
+          <select
+            value={values.rateType}
+            onChange={(e) => handleRateTypeChange(e.target.value)}
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
+          >
+            {RATE_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Rate type</label>
-            <select
-              value={values.rateType}
-              onChange={(e) => handleRateTypeChange(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
-            >
-              {RATE_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Rate ($)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={values.rateAmount}
-              onChange={(e) => setValues((v) => ({ ...v, rateAmount: Number(e.target.value) }))}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
-            />
-          </div>
+        {/* Per-machine rate amount inputs */}
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h3 className="text-sm font-semibold text-slate-700">
+            {values.machines.length === 1 ? 'Machine rate' : 'Machine rates'}
+          </h3>
+          {values.machines.map((m) => (
+            <div key={m.id} className="grid gap-3 sm:grid-cols-2 items-center">
+              <div>
+                <p className="text-sm font-medium text-slate-800">{m.name}</p>
+                <p className="text-xs text-slate-500">{m.machine_categories?.name ?? 'Uncategorised'}</p>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-500">
+                  Rate per {values.rateType} ($)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={values.machineRates[m.id] ?? 0}
+                  onChange={(e) =>
+                    setValues((v) => ({
+                      ...v,
+                      machineRates: { ...v.machineRates, [m.id]: Number(e.target.value) },
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
+                />
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
@@ -764,10 +821,17 @@ export function NewBookingWizard({
               <span className="text-sm text-violet-700">Estimated total</span>
               <span className="text-lg font-bold text-violet-900">{formatCurrency(estimatedTotal)}</span>
             </div>
-            <p className="text-xs text-violet-500">
-              Hire: {estimatedDays} day{estimatedDays !== 1 ? 's' : ''} × {formatCurrency(values.rateAmount)}/{values.rateType}
-              {extrasSubtotal > 0 ? ` + Extras: ${formatCurrency(extrasSubtotal)}` : ''}
-            </p>
+            <div className="space-y-0.5">
+              {values.machines.map((m) => (
+                <p key={m.id} className="text-xs text-violet-500">
+                  {m.name}: {estimatedDays} day{estimatedDays !== 1 ? 's' : ''} × {formatCurrency(values.machineRates[m.id] ?? 0)}/{values.rateType}
+                  {' = '}{formatCurrency((values.machineRates[m.id] ?? 0) * estimatedDays)}
+                </p>
+              ))}
+              {extrasSubtotal > 0 && (
+                <p className="text-xs text-violet-500">Extras: {formatCurrency(extrasSubtotal)}</p>
+              )}
+            </div>
             <div className="border-t border-violet-200 mt-2 pt-2 space-y-0.5">
               <div className="flex items-center justify-between text-xs text-violet-500">
                 <span>Subtotal (ex GST)</span>
@@ -861,9 +925,20 @@ export function NewBookingWizard({
 
       <div className="space-y-0 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="p-4">
-          <ReviewRow icon={<Truck className="size-4 text-violet-500" />} label="Machine">
-            <p className="font-bold text-slate-900">{values.machine?.name}</p>
-            <p className="text-xs text-slate-500">{values.machine?.machine_categories?.name}</p>
+          <ReviewRow icon={<Truck className="size-4 text-violet-500" />} label={values.machines.length === 1 ? 'Machine' : 'Machines'}>
+            <div className="space-y-1.5 mt-0.5">
+              {values.machines.map((m) => (
+                <div key={m.id} className="flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-slate-900">{m.name}</p>
+                    <p className="text-xs text-slate-500">{m.machine_categories?.name}</p>
+                  </div>
+                  <p className="text-sm font-semibold text-violet-700">
+                    {formatCurrency(values.machineRates[m.id] ?? 0)}/{values.rateType}
+                  </p>
+                </div>
+              ))}
+            </div>
           </ReviewRow>
         </div>
         <div className="p-4">
@@ -941,13 +1016,14 @@ export function NewBookingWizard({
         This job will be saved as <strong>Pending</strong>. Record any required payment on the job page, then confirm it to put the machine on hire.
       </p>
 
-      {values.machine && conflictedMachineIds.has(values.machine.id) && (
+      {anySelectedConflicted && (
         <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-600" />
           <div className="text-sm">
             <p className="font-semibold text-red-800">Cannot create — machine already booked</p>
             <p className="text-red-700">
-              {values.machine.name} has a confirmed booking overlapping these dates.{' '}
+              {values.machines.filter((m) => conflictedMachineIds.has(m.id)).map((m) => m.name).join(', ')}{' '}
+              has a confirmed booking overlapping these dates.{' '}
               <button type="button" onClick={() => setStep(1)} className="font-semibold underline hover:no-underline">
                 Go back to fix it.
               </button>
@@ -960,7 +1036,7 @@ export function NewBookingWizard({
         <Button
           className="w-full"
           loading={loading}
-          disabled={!!(values.machine && conflictedMachineIds.has(values.machine.id))}
+          disabled={anySelectedConflicted}
           onClick={() => { void onSubmit(values); }}
         >
           Create Job

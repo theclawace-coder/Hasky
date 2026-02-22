@@ -66,8 +66,8 @@ Deno.serve(async (req) => {
       return jsonResponse(404, { error: 'Invoice not found or access denied' });
     }
 
-    if (!['sent', 'overdue'].includes(String(invoice.status))) {
-      return jsonResponse(400, { error: 'Reminders can only be sent for sent or overdue invoices' });
+    if (!['sent', 'overdue', 'partially_paid'].includes(String(invoice.status))) {
+      return jsonResponse(400, { error: 'Reminders can only be sent for outstanding invoices' });
     }
 
     const customer = normalizeRelation<{ name?: string; email?: string }>(

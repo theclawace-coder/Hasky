@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   AU_STATES,
   BOOKING_STATUSES,
   DEAL_STATUSES,
@@ -108,14 +108,27 @@ export interface Customer {
   city: string | null;
   state: AUState | null;
   notes: string | null;
+  drivers_licence_number: string | null;
+  drivers_licence_image_url: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface BookingMachine {
+  id: UUID;
+  booking_id: UUID;
+  machine_id: UUID;
+  machine_order: number;
+  rate_type: RateType | null;
+  rate_amount: number;
+  created_at: string;
+  machines?: Machine;
 }
 
 export interface Booking {
   id: UUID;
   company_id: UUID;
-  machine_id: UUID;
+  machine_id: UUID | null;
   customer_id: UUID;
   quote_id: UUID | null;
   booking_number: string | null;
@@ -145,6 +158,7 @@ export interface Booking {
   updated_at: string;
   machines?: Machine;
   customers?: Customer;
+  booking_machines?: BookingMachine[];
 }
 
 export interface BookingChargeItem {

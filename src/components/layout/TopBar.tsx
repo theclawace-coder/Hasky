@@ -66,6 +66,7 @@ export function TopBar({ onTourClick, onWikiClick, onPageTourClick }: TopBarProp
   return (
     <>
       <header
+        data-topbar
         className="sticky top-0 z-20 border-b"
         style={{
           background: 'rgba(255,255,255,0.78)',

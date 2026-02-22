@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AlertTriangle, CheckCircle2, Pencil, Plus, XCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useBooking, useBookings } from '../../hooks/useBookings';
 import { useCustomers } from '../../hooks/useCustomers';
 import { useMachines } from '../../hooks/useMachines';
 import { useExpenses } from '../../hooks/useAccounting';
+import { getInvoicesByBookingId } from '../../services/api';
 import { BookingStatusBar } from '../../components/bookings/BookingStatusBar';
 import { BookingForm, type BookingFormValues } from '../../components/bookings/BookingForm';
 import { Button } from '../../components/ui/Button';
@@ -16,7 +18,8 @@ import { Select } from '../../components/ui/Select';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { BOOKING_STATUS_LABELS, EXPENSE_CATEGORIES } from '../../lib/constants';
-import type { BookingChargeItem, ExpenseCategory } from '../../types';
+import { updateQuoteStatus } from '../../services/api';
+import type { BookingChargeItem, BookingMachine, ExpenseCategory } from '../../types';
 
 const RETURN_CHECKLIST = [
   'Machine returned to yard / agreed location',
@@ -49,9 +52,22 @@ export default function BookingDetail() {
 
   const { expensesQuery, upsertMutation: logCostMutation } = useExpenses({ bookingId: id ?? '' });
 
+  const bookingInvoicesQuery = useQuery({
+    queryKey: ['invoices', 'booking', id],
+    queryFn: () => getInvoicesByBookingId(id!),
+    enabled: Boolean(id),
+  });
+
   const booking = bookingQuery.data;
   const chargeItems = useMemo(
     () => (((booking as { booking_charge_items?: BookingChargeItem[] } | null)?.booking_charge_items) ?? []),
+    [booking],
+  );
+
+  const bookingMachines = useMemo(
+    () => (((booking as { booking_machines?: BookingMachine[] } | null)?.booking_machines) ?? [])
+      .slice()
+      .sort((a, b) => a.machine_order - b.machine_order),
     [booking],
   );
 
@@ -64,7 +80,9 @@ export default function BookingDetail() {
   const depositPaid = Number(booking?.deposit_paid_amount ?? 0);
   const depositOutstanding = Math.max(depositDue - depositPaid, 0);
   const depositSatisfied = depositOutstanding <= 0;
-  const fullPaid = Boolean(booking?.paid_in_full_date);
+  const bookingInvoices = bookingInvoicesQuery.data ?? [];
+  const invoicesPaid = bookingInvoices.length > 0 && bookingInvoices.every((inv) => inv.status === 'paid');
+  const fullPaid = Boolean(booking?.paid_in_full_date) || invoicesPaid;
   const confirmationPaymentSatisfied = booking?.payment_plan === 'upfront'
     ? fullPaid
     : booking?.payment_plan === 'deposit'
@@ -83,6 +101,14 @@ export default function BookingDetail() {
     if (!id) return;
     try {
       await updateLifecycleMutation.mutateAsync({ bookingId: id, bookingStatus, machineStatus });
+      // When a job is confirmed, mark its linked quote as accepted
+      if (bookingStatus === 'confirmed' && booking?.quote_id) {
+        try {
+          await updateQuoteStatus(booking.quote_id, 'accepted');
+        } catch {
+          console.warn('Could not update linked quote status');
+        }
+      }
       toast.success('Booking updated');
       void bookingQuery.refetch();
     } catch (error) {
@@ -169,8 +195,11 @@ export default function BookingDetail() {
             {booking.booking_number ?? `Job #${booking.id.slice(0, 8)}`}
           </h2>
           <div className="flex items-center gap-2">
-            <StatusBadge status={booking.status} label={BOOKING_STATUS_LABELS[booking.status]} />
-            {/* Allow editing for pending and confirmed jobs; not for completed/cancelled */}
+            {fullPaid ? (
+              <StatusBadge status="paid" label="Paid" />
+            ) : (
+              <StatusBadge status={booking.status} label={BOOKING_STATUS_LABELS[booking.status]} />
+            )}
             {(booking.status === 'quote' || booking.status === 'confirmed') ? (
               <Button variant="secondary" onClick={() => setEditOpen(true)}>
                 <Pencil className="size-4" />
@@ -188,7 +217,34 @@ export default function BookingDetail() {
         <Card>
           <h3 className="text-lg font-semibold text-slate-900">Machine and Customer</h3>
           <div className="mt-3 space-y-2 text-sm text-slate-700">
-            <p><span className="font-medium">Machine:</span> {booking.machines?.name}</p>
+            {/* Multi-machine display: show junction table rows if available, fall back to primary machine */}
+            {bookingMachines.length > 0 ? (
+              <div>
+                <p className="font-medium text-slate-700">{bookingMachines.length === 1 ? 'Machine:' : 'Machines:'}</p>
+                <div className="mt-1 rounded-lg border border-slate-100 overflow-hidden">
+                  <table className="min-w-full text-xs">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-3 py-1.5 text-left font-semibold text-slate-500">Name</th>
+                        <th className="px-3 py-1.5 text-left font-semibold text-slate-500">Rate type</th>
+                        <th className="px-3 py-1.5 text-right font-semibold text-slate-500">Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bookingMachines.map((bm) => (
+                        <tr key={bm.id} className="border-t border-slate-100">
+                          <td className="px-3 py-1.5 font-medium text-slate-800">{bm.machines?.name ?? '-'}</td>
+                          <td className="px-3 py-1.5 text-slate-600">{bm.rate_type ?? '-'}</td>
+                          <td className="px-3 py-1.5 text-right text-slate-600">{formatCurrency(bm.rate_amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <p><span className="font-medium">Machine:</span> {booking.machines?.name ?? '-'}</p>
+            )}
             <p><span className="font-medium">Customer:</span> {booking.customers?.name}</p>
             <p><span className="font-medium">Start:</span> {formatDate(booking.start_date)}</p>
             <p><span className="font-medium">End:</span> {formatDate(booking.end_date)}</p>
@@ -289,15 +345,25 @@ export default function BookingDetail() {
               </>
             ) : null}
 
-            {/* Only offer invoice generation once job is confirmed or completed */}
             {(booking.status === 'confirmed' || booking.status === 'completed') ? (
-              <Button
-                variant="secondary"
-                onClick={() => void handleGenerateInvoice()}
-                loading={generateInvoiceMutation.isPending}
-              >
-                Generate Invoice
-              </Button>
+              fullPaid ? (
+                <div className="relative">
+                  <Button variant="secondary" disabled className="opacity-50">
+                    Generate Invoice
+                  </Button>
+                  <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                    PAID
+                  </span>
+                </div>
+              ) : (
+                <Button
+                  variant="secondary"
+                  onClick={() => void handleGenerateInvoice()}
+                  loading={generateInvoiceMutation.isPending}
+                >
+                  Generate Invoice
+                </Button>
+              )
             ) : null}
           </div>
         </Card>

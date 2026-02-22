@@ -8,7 +8,7 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { StatusBadge } from '../ui/StatusBadge';
-import type { Booking, Machine } from '../../types';
+import type { Booking, BookingMachine, Machine } from '../../types';
 
 interface BookingCalendarProps {
   mode: 'week' | 'month';
@@ -55,14 +55,15 @@ export function BookingCalendar({
                 <p className="text-xs text-slate-500">{machine.machine_categories?.name}</p>
               </td>
               {days.map((day) => {
-                const bookingsOnDay = bookings.filter(
-                  (item) =>
-                    item.machine_id === machine.id &&
-                    isWithinInterval(day, {
-                      start: new Date(item.start_date),
-                      end: new Date(item.end_date ?? item.start_date),
-                    }),
-                );
+                const bookingsOnDay = bookings.filter((item) => {
+                  const bmIds = ((item as Booking & { booking_machines?: BookingMachine[] }).booking_machines ?? [])
+                    .map((bm) => bm.machine_id);
+                  const spansMachine = item.machine_id === machine.id || bmIds.includes(machine.id);
+                  return spansMachine && isWithinInterval(day, {
+                    start: new Date(item.start_date),
+                    end: new Date(item.end_date ?? item.start_date),
+                  });
+                });
                 const booking = bookingsOnDay[0];
 
                 return (

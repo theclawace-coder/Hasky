@@ -3,6 +3,7 @@ interface BookingDateRangeLike {
   start_date: string;
   end_date: string | null;
   status: string;
+  booking_machines?: Array<{ machine_id: string }>;
 }
 
 interface MachineAvailabilityLike {
@@ -46,21 +47,26 @@ export const getConflictedMachineIds = (
   }
 
   const allowedStatuses = new Set(statuses);
-  return new Set(
-    bookings
-      .filter((booking) => allowedStatuses.has(booking.status))
-      .filter((booking) => {
-        const normalizedBookingRange = normalizeDateRange(booking.start_date, booking.end_date);
-        if (!normalizedBookingRange) {
-          return false;
-        }
+  const conflicted = new Set<string>();
 
-        // Date ranges overlap when each starts before the other ends.
-        return normalizedRange.start <= normalizedBookingRange.end
-          && normalizedRange.end >= normalizedBookingRange.start;
-      })
-      .map((booking) => booking.machine_id),
-  );
+  for (const booking of bookings) {
+    if (!allowedStatuses.has(booking.status)) continue;
+
+    const normalizedBookingRange = normalizeDateRange(booking.start_date, booking.end_date);
+    if (!normalizedBookingRange) continue;
+
+    const overlaps = normalizedRange.start <= normalizedBookingRange.end
+      && normalizedRange.end >= normalizedBookingRange.start;
+    if (!overlaps) continue;
+
+    // Collect all machine IDs: primary + booking_machines junction rows.
+    if (booking.machine_id) conflicted.add(booking.machine_id);
+    for (const bm of booking.booking_machines ?? []) {
+      conflicted.add(bm.machine_id);
+    }
+  }
+
+  return conflicted;
 };
 
 export const getEffectiveMachineStatus = (

@@ -107,6 +107,7 @@ Deno.serve(async (req) => {
         customer_id,
         status,
         total,
+        paid_amount,
         share_token,
         sent_to,
         ${numberField},
@@ -134,7 +135,15 @@ Deno.serve(async (req) => {
 
     const shareToken = documentRow.share_token ?? createShareToken();
     const nowIso = new Date().toISOString();
-    const nextStatus = documentRow.status === 'draft' ? 'sent' : documentRow.status;
+    let nextStatus = documentRow.status === 'draft' ? 'sent' : documentRow.status;
+    if (
+      documentType === 'invoice' &&
+      nextStatus === 'sent' &&
+      Number((documentRow as Record<string, unknown>).paid_amount ?? 0) > 0 &&
+      Number((documentRow as Record<string, unknown>).paid_amount ?? 0) < Number(documentRow.total ?? 0)
+    ) {
+      nextStatus = 'partially_paid';
+    }
 
     const { error: updateError } = await adminClient
       .from(table)
@@ -156,7 +165,7 @@ Deno.serve(async (req) => {
     const stripeEnabled = await hasStripePaymentsEnabled(adminClient, documentRow.company_id);
     const payableStatuses = documentType === 'quote'
       ? ['draft', 'sent', 'accepted']
-      : ['draft', 'sent', 'overdue'];
+      : ['draft', 'sent', 'overdue', 'partially_paid'];
     const paymentUrl =
       hasPositiveBalance && stripeEnabled && payableStatuses.includes(documentRow.status)
         ? `${shareUrl}?pay=1`

@@ -28,6 +28,14 @@ const fmtDate = (s: string | null | undefined) => {
   return d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+const logoLooksLikePng = (url: string, contentType: string | null) =>
+  contentType?.toLowerCase().includes('png') || /\.png($|\?)/i.test(url);
+
+const logoLooksLikeJpeg = (url: string, contentType: string | null) =>
+  contentType?.toLowerCase().includes('jpeg')
+  || contentType?.toLowerCase().includes('jpg')
+  || /\.(jpe?g)($|\?)/i.test(url);
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return errResponse(405, 'Method not allowed');
@@ -117,9 +125,40 @@ Deno.serve(async (req) => {
   // ── Header band ──────────────────────────────────────────────────────────
   page.drawRectangle({ x: 0, y: height - 80, width, height: 80, color: BRAND });
 
-  // Company name (white)
+  // Company name + logo (white)
   const companyName = (company as { name?: string } | null)?.name ?? 'Your Company';
-  text(companyName, margin, height - 32, { font: fontBold, size: 20, color: WHITE });
+  const logoUrl = (company as { logo_url?: string | null } | null)?.logo_url ?? null;
+  let companyNameX = margin;
+  if (logoUrl) {
+    try {
+      const logoRes = await fetch(logoUrl);
+      if (logoRes.ok) {
+        const contentType = logoRes.headers.get('content-type');
+        const logoBytes = new Uint8Array(await logoRes.arrayBuffer());
+        let embeddedLogo: { width: number; height: number; scale: (factor: number) => { width: number; height: number } } | null = null;
+        if (logoLooksLikePng(logoUrl, contentType)) {
+          embeddedLogo = await doc.embedPng(logoBytes);
+        } else if (logoLooksLikeJpeg(logoUrl, contentType)) {
+          embeddedLogo = await doc.embedJpg(logoBytes);
+        }
+        if (embeddedLogo) {
+          const maxLogoHeight = 46;
+          const scale = maxLogoHeight / embeddedLogo.height;
+          const { width: logoW, height: logoH } = embeddedLogo.scale(scale);
+          page.drawImage(embeddedLogo, {
+            x: margin,
+            y: height - 64,
+            width: logoW,
+            height: logoH,
+          });
+          companyNameX = margin + logoW + 12;
+        }
+      }
+    } catch {
+      // Best effort only: never fail PDF generation if logo fetch/format fails.
+    }
+  }
+  text(companyName, companyNameX, height - 32, { font: fontBold, size: 20, color: WHITE });
 
   // INVOICE label on the right
   const invLabel = 'INVOICE';
@@ -172,7 +211,7 @@ Deno.serve(async (req) => {
   const metaCols = [
     { label: 'Issue Date', value: fmtDate(inv.issue_date) },
     { label: 'Due Date', value: fmtDate(inv.due_date) },
-    { label: 'Status', value: (inv.status ?? '').toUpperCase() },
+    { label: 'Status', value: (inv.status ?? '').replace(/_/g, ' ').toUpperCase() },
   ];
   const metaColW = (width - margin * 2) / metaCols.length;
   metaCols.forEach((m, i) => {

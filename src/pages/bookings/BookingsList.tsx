@@ -23,6 +23,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Table, TableContainer } from '../../components/ui/Table';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { BOOKING_STATUS_LABELS } from '../../lib/constants';
+import type { BookingMachine, Invoice } from '../../types';
 
 const tabs = ['', 'quote', 'confirmed', 'completed', 'cancelled'];
 
@@ -43,13 +44,21 @@ export default function BookingsList() {
     [machinesQuery.data],
   );
 
+  const getAllMachineNames = (b: (typeof bookings)[number]) => {
+    const bms = ((b as typeof b & { booking_machines?: BookingMachine[] }).booking_machines ?? [])
+      .slice()
+      .sort((a, c) => a.machine_order - c.machine_order);
+    if (bms.length > 0) return bms.map((bm) => bm.machines?.name ?? '').filter(Boolean);
+    return b.machines?.name ? [b.machines.name] : [];
+  };
+
   const filteredBookings = useMemo(() => {
     if (!search.trim()) return bookings;
     const q = search.toLowerCase();
     return bookings.filter(
       (b) =>
         b.customers?.name?.toLowerCase().includes(q) ||
-        b.machines?.name?.toLowerCase().includes(q),
+        getAllMachineNames(b).some((name) => name.toLowerCase().includes(q)),
     );
   }, [bookings, search]);
 
@@ -196,29 +205,38 @@ export default function BookingsList() {
                     </td>
                   </tr>
                 ) : (
-                  filteredBookings.map((booking) => (
-                    <tr
-                      key={booking.id}
-                      className="cursor-pointer border-t border-slate-100 hover:bg-slate-50"
-                      onClick={() => navigate(`/bookings/${booking.id}`)}
-                    >
-                      <td className="p-3 font-medium text-violet-600" onClick={(e) => e.stopPropagation()}>
-                        <Link to={`/bookings/${booking.id}`}>{booking.booking_number ?? '—'}</Link>
-                      </td>
-                      <td className="p-3">{booking.machines?.name}</td>
-                      <td className="p-3">{booking.customers?.name}</td>
-                      <td className="p-3">{formatDate(booking.start_date)}</td>
-                      <td className="p-3">{formatDate(booking.end_date)}</td>
-                      <td className="p-3">{formatCurrency(booking.rate_amount)}</td>
-                      <td className="p-3">
-                        {formatCurrency(Number(booking.total_amount ?? booking.rate_amount))}
-                      </td>
-                      <td className="p-3">
-                        <StatusBadge status={booking.status} label={BOOKING_STATUS_LABELS[booking.status]} />
-                      </td>
-                    </tr>
-                  ))
-                )}
+                  filteredBookings.map((booking) => {
+                    const linkedInvoices = ((booking as typeof booking & { invoices?: Pick<Invoice, 'id' | 'status'>[] }).invoices) ?? [];
+                    const invoicesPaid = linkedInvoices.length > 0 && linkedInvoices.every((inv) => inv.status === 'paid');
+                    const isPaid = Boolean(booking.paid_in_full_date) || invoicesPaid;
+                    return (
+                      <tr
+                        key={booking.id}
+                        className={`cursor-pointer border-t border-slate-100 ${isPaid ? 'bg-emerald-50 hover:bg-emerald-100' : 'hover:bg-slate-50'}`}
+                        onClick={() => navigate(`/bookings/${booking.id}`)}
+                      >
+                        <td className="p-3 font-medium text-violet-600" onClick={(e) => e.stopPropagation()}>
+                          <Link to={`/bookings/${booking.id}`}>{booking.booking_number ?? '—'}</Link>
+                        </td>
+                        <td className="p-3">{getAllMachineNames(booking).join(', ') || '—'}</td>
+                        <td className="p-3">{booking.customers?.name}</td>
+                        <td className="p-3">{formatDate(booking.start_date)}</td>
+                        <td className="p-3">{formatDate(booking.end_date)}</td>
+                        <td className="p-3">{formatCurrency(booking.rate_amount)}</td>
+                        <td className="p-3">
+                          {formatCurrency(Number(booking.total_amount ?? booking.rate_amount))}
+                        </td>
+                        <td className="p-3">
+                          {isPaid ? (
+                            <StatusBadge status="paid" label="Paid" />
+                          ) : (
+                            <StatusBadge status={booking.status} label={BOOKING_STATUS_LABELS[booking.status]} />
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  }))
+                }
               </tbody>
             </Table>
           </TableContainer>

@@ -16,7 +16,7 @@ import { Table, TableContainer } from '../../components/ui/Table';
 import { dueDateStatus, formatCurrency, formatDate } from '../../lib/utils';
 import type { Invoice, InvoiceItem, InvoiceStatus } from '../../types';
 
-const statuses = ['', 'draft', 'sent', 'paid', 'overdue'];
+const statuses = ['', 'draft', 'sent', 'partially_paid', 'paid', 'overdue'];
 
 export default function InvoicesList() {
   const { profile } = useAuth();
@@ -145,7 +145,7 @@ export default function InvoicesList() {
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         {statuses.map((tab) => (
           <Button key={tab || 'all'} size="sm" variant={status === tab ? 'primary' : 'secondary'} onClick={() => setStatus(tab)}>
-            {tab ? tab[0].toUpperCase() + tab.slice(1) : 'All'}
+            {tab ? tab.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : 'All'}
           </Button>
         ))}
         <div className="relative ml-auto min-w-48">

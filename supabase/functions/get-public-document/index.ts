@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
       const canPayOnline =
         stripeConfig.configured &&
         invoiceOutstanding > 0 &&
-        ['draft', 'sent', 'overdue'].includes(invoice.status);
+        ['draft', 'sent', 'overdue', 'partially_paid'].includes(invoice.status);
       const shareUrl = `${getAppBaseUrl()}/public/invoice/${token}`;
 
       return jsonResponse(200, {

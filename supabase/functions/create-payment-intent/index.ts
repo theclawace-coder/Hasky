@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
         : 'id, company_id, total, paid_amount, status, share_token, invoice_number';
       const payableStatuses = documentType === 'quote'
         ? ['draft', 'sent', 'accepted']
-        : ['draft', 'sent', 'overdue'];
+        : ['draft', 'sent', 'overdue', 'partially_paid'];
 
       const { data: row, error } = await adminClient
         .from(table)
@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
       return jsonResponse(404, { error: 'Invoice not found' });
     }
 
-    if (!['draft', 'sent', 'overdue'].includes(invoice.status)) {
+    if (!['draft', 'sent', 'overdue', 'partially_paid'].includes(invoice.status)) {
       return jsonResponse(400, { error: 'Invoice is not payable' });
     }
 

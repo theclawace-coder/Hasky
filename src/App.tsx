@@ -1,4 +1,4 @@
-﻿import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import FleetList from './pages/fleet/FleetList';
@@ -11,7 +11,6 @@ import CustomerDetail from './pages/customers/CustomerDetail';
 import InvoicesList from './pages/invoices/InvoicesList';
 import InvoiceDetail from './pages/invoices/InvoiceDetail';
 import QuotesList from './pages/quotes/QuotesList';
-import MachineMap from './pages/map/MachineMap';
 import Settings from './pages/settings/Settings';
 import AccountingPage from './pages/accounting/AccountingPage';
 import Login from './pages/auth/Login';
@@ -98,7 +97,6 @@ VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY`}
         <Route path="/bookings" element={<BookingsList />} />
         <Route path="/bookings/new" element={<NewBooking />} />
         <Route path="/bookings/:id" element={<BookingDetail />} />
-        <Route path="/map" element={<MachineMap />} />
         <Route path="/customers" element={<CustomersList />} />
         <Route path="/customers/:id" element={<CustomerDetail />} />
         <Route path="/invoices" element={<InvoicesList />} />

@@ -1,11 +1,12 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Paperclip, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useMachine, useMachines } from '../../hooks/useMachines';
-import { createMaintenance, getMaintenanceByMachine, upsertMachine } from '../../services/api';
+import { createMaintenance, getMaintenanceByMachine, uploadDocument, upsertMachine } from '../../services/api';
 import { MachineForm, type MachineFormValues } from '../../components/fleet/MachineForm';
 import { MachineStatusDropdown } from '../../components/fleet/MachineStatusDropdown';
 import { PhotoUpload } from '../../components/fleet/PhotoUpload';
@@ -33,6 +34,8 @@ export default function MachineDetail() {
     cost: '',
     performed_by: '',
   });
+  const [maintenanceFiles, setMaintenanceFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const machineQuery = useMachine(id ?? '');
   const machine = machineQuery.data;
@@ -105,6 +108,16 @@ export default function MachineDetail() {
     }
 
     try {
+      setUploadingFiles(true);
+      let documentUrls: string[] | null = null;
+      if (maintenanceFiles.length > 0) {
+        const folder = `${profile.company_id}/${machine.id}`;
+        const urls = await Promise.all(
+          maintenanceFiles.map((f) => uploadDocument(f, 'maintenance-docs', folder)),
+        );
+        documentUrls = urls;
+      }
+
       await maintenanceMutation.mutateAsync({
         machine_id: machine.id,
         company_id: profile.company_id,
@@ -114,11 +127,15 @@ export default function MachineDetail() {
         next_due_date: maintenanceForm.next_due_date || null,
         cost: maintenanceForm.cost ? Number(maintenanceForm.cost) : null,
         performed_by: maintenanceForm.performed_by || null,
+        document_urls: documentUrls,
       });
       toast.success('Maintenance record added');
       setMaintenanceOpen(false);
+      setMaintenanceFiles([]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save maintenance');
+    } finally {
+      setUploadingFiles(false);
     }
   };
 
@@ -239,6 +256,22 @@ export default function MachineDetail() {
                   </div>
                   <p className="text-sm text-slate-600">Performed {formatDate(item.date_performed)}</p>
                   {item.cost ? <p className="text-sm text-slate-600">Cost: {formatCurrency(item.cost)}</p> : null}
+                  {item.document_urls && item.document_urls.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {item.document_urls.map((url, idx) => (
+                        <a
+                          key={idx}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-violet-600 hover:bg-violet-50"
+                        >
+                          <Paperclip className="size-3" />
+                          Attachment {idx + 1}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
@@ -321,9 +354,44 @@ export default function MachineDetail() {
               />
             </div>
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Attachments</label>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+              <Paperclip className="size-4" />
+              Add files
+              <input
+                type="file"
+                multiple
+                accept="image/png,image/jpeg,image/webp,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  setMaintenanceFiles((prev) => [...prev, ...files]);
+                  e.currentTarget.value = '';
+                }}
+              />
+            </label>
+            {maintenanceFiles.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {maintenanceFiles.map((file, idx) => (
+                  <div key={`${file.name}-${idx}`} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
+                    <span className="truncate">{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setMaintenanceFiles((prev) => prev.filter((_, i) => i !== idx))}
+                      className="ml-2 shrink-0 text-slate-400 hover:text-red-500"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-1 text-xs text-slate-400">PNG, JPG, WebP or PDF up to 10 MB each</p>
+          </div>
           <div className="flex justify-end">
-            <Button onClick={onAddMaintenance} loading={maintenanceMutation.isPending}>
-              Save Maintenance
+            <Button onClick={onAddMaintenance} loading={maintenanceMutation.isPending || uploadingFiles}>
+              {uploadingFiles ? 'Uploading…' : 'Save Maintenance'}
             </Button>
           </div>
         </div>

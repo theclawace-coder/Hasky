@@ -1,10 +1,11 @@
-﻿import { endOfMonth, startOfMonth } from 'date-fns';
+import { endOfMonth, startOfMonth } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import type {
   AccountingSummary,
   Booking,
   BookingChargeItem,
   BookingChargeTemplate,
+  BookingMachine,
   Company,
   CompanySettings,
   CrossHireDeal,
@@ -22,6 +23,7 @@ import type {
   PublicDocumentPayload,
   Quote,
   QuoteItem,
+  QuoteStatus,
   StripeConfigStatus,
   MachineModelCatalogEntry,
   TeamInvite,
@@ -125,6 +127,90 @@ const extractReceiptStoragePath = (value: string | null | undefined) => {
   const path = pathWithQuery.split('?')[0];
   return decodeURIComponent(path);
 };
+
+const extractStoragePathFromPublicUrl = (value: string | null | undefined, bucket: string) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) {
+    return null;
+  }
+
+  if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+    return raw;
+  }
+
+  const marker = `/storage/v1/object/public/${bucket}/`;
+  const markerIndex = raw.indexOf(marker);
+  if (markerIndex < 0) {
+    return null;
+  }
+
+  const pathWithQuery = raw.slice(markerIndex + marker.length);
+  const path = pathWithQuery.split('?')[0];
+  return decodeURIComponent(path);
+};
+
+export async function uploadCompanyLogo(file: File, companyId: string) {
+  if (!companyId) {
+    throw new Error('Company not found');
+  }
+  const allowedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/jpg']);
+  if (!allowedMimeTypes.has(file.type)) {
+    throw new Error('Logo must be a PNG or JPG image');
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error('Logo must be 5MB or smaller');
+  }
+
+  const extFromName = file.name.includes('.') ? file.name.split('.').pop() : null;
+  const ext = String(extFromName ?? file.type.split('/')[1] ?? 'png')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toLowerCase() || 'png';
+  const path = `${companyId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('company-logos')
+    .upload(path, file, { upsert: false, cacheControl: '3600' });
+  throwIfError(uploadError);
+
+  const { data } = supabase.storage.from('company-logos').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+export async function removeCompanyLogoObject(logoUrl: string | null | undefined) {
+  const path = extractStoragePathFromPublicUrl(logoUrl, 'company-logos');
+  if (!path) {
+    return;
+  }
+  await supabase.storage.from('company-logos').remove([path]);
+}
+
+const DOCUMENT_ALLOWED_TYPES = new Set([
+  'image/png', 'image/jpeg', 'image/jpg', 'image/webp',
+  'application/pdf',
+]);
+const DOCUMENT_MAX_SIZE = 10 * 1024 * 1024;
+
+export async function uploadDocument(file: File, bucket: string, folder: string) {
+  if (!DOCUMENT_ALLOWED_TYPES.has(file.type)) {
+    throw new Error('File must be an image (PNG/JPG/WebP) or PDF');
+  }
+  if (file.size > DOCUMENT_MAX_SIZE) {
+    throw new Error('File must be 10 MB or smaller');
+  }
+  const extFromName = file.name.includes('.') ? file.name.split('.').pop() : null;
+  const ext = String(extFromName ?? file.type.split('/')[1] ?? 'bin')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toLowerCase() || 'bin';
+  const path = `${folder}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(bucket)
+    .upload(path, file, { upsert: false, cacheControl: '3600' });
+  throwIfError(uploadError);
+
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
+}
 
 export async function getMachineCategories() {
   const { data, error } = await supabase.from('machine_categories').select('*').order('name');
@@ -289,8 +375,8 @@ export async function getBookings(filters?: {
     .from('bookings')
     .select(
       includeChargeItems
-        ? '*,machines(*,machine_categories(*)),customers(*),booking_charge_items(*)'
-        : '*,machines(*,machine_categories(*)),customers(*)',
+        ? '*,machines(*,machine_categories(*)),customers(*),booking_charge_items(*),booking_machines(*,machines(*)),invoices(id,status)'
+        : '*,machines(*,machine_categories(*)),customers(*),booking_machines(*,machines(*)),invoices(id,status)',
     )
     .order('start_date', { ascending: true }) as any;
 
@@ -320,16 +406,17 @@ export async function getBookings(filters?: {
 export async function getBookingById(id: string) {
   const { data, error } = await supabase
     .from('bookings')
-    .select('*, machines(*, machine_categories(*)), customers(*), booking_charge_items(*)')
+    .select('*, machines(*, machine_categories(*)), customers(*), booking_charge_items(*), booking_machines(*, machines(*))')
     .eq('id', id)
     .maybeSingle();
   throwIfError(error);
-  return data as (Booking & { booking_charge_items?: BookingChargeItem[] }) | null;
+  return data as (Booking & { booking_charge_items?: BookingChargeItem[]; booking_machines?: BookingMachine[] }) | null;
 }
 
 export async function upsertBooking(
   payload: Partial<Booking>,
   chargeItems: Array<Pick<BookingChargeItem, 'description' | 'quantity' | 'unit_price'>> = [],
+  bookingMachines: Array<Pick<BookingMachine, 'machine_id' | 'machine_order' | 'rate_type' | 'rate_amount'>> = [],
 ) {
   const bookingPayload: Partial<Booking> & Record<string, unknown> = { ...payload };
 
@@ -381,6 +468,31 @@ export async function upsertBooking(
     }
   }
 
+  if (bookingMachines.length) {
+    const { error: deleteMachinesError } = await supabase
+      .from('booking_machines')
+      .delete()
+      .eq('booking_id', (data as Booking).id);
+    if (deleteMachinesError && !isMissingRelation(deleteMachinesError, 'booking_machines')) {
+      throwIfError(deleteMachinesError);
+    }
+
+    const { error: insertMachinesError } = await supabase
+      .from('booking_machines')
+      .insert(
+        bookingMachines.map((bm) => ({
+          booking_id: (data as Booking).id,
+          machine_id: bm.machine_id,
+          machine_order: bm.machine_order,
+          rate_type: bm.rate_type,
+          rate_amount: bm.rate_amount,
+        })),
+      );
+    if (insertMachinesError && !isMissingRelation(insertMachinesError, 'booking_machines')) {
+      throwIfError(insertMachinesError);
+    }
+  }
+
   return data as Booking;
 }
 
@@ -411,15 +523,27 @@ export async function updateBookingAndMachineStatus(bookingId: string, bookingSt
     throw new Error('Booking not found');
   }
 
-  const machineId = (bookingRow as { machine_id: string | null }).machine_id;
-  if (!machineId) {
-    throw new Error('Booking machine is missing');
+  // Update all machines from booking_machines (multi-machine support).
+  const { data: bmRows } = await supabase
+    .from('booking_machines')
+    .select('machine_id')
+    .eq('booking_id', bookingId);
+
+  const machineIdsToUpdate = new Set<string>();
+  (bmRows ?? []).forEach((bm: { machine_id: string }) => machineIdsToUpdate.add(bm.machine_id));
+
+  // Also include primary machine_id for backward compat.
+  const primaryMachineId = (bookingRow as { machine_id: string | null }).machine_id;
+  if (primaryMachineId) machineIdsToUpdate.add(primaryMachineId);
+
+  if (machineIdsToUpdate.size === 0) {
+    throw new Error('Booking has no machines');
   }
 
   const { error: machineError } = await supabase
     .from('machines')
     .update({ status: machineStatus })
-    .eq('id', machineId);
+    .in('id', Array.from(machineIdsToUpdate));
   throwIfError(machineError);
 }
 
@@ -514,12 +638,33 @@ export async function getMachineLocationsByDate(dateOn: string) {
     getBookings({ dateOn }),
   ]);
 
+  // Fetch booking_machines for bookings that are active on this date.
+  const bookingIds = bookings.map((b) => b.id);
+  let bmByBookingId = new Map<string, string[]>();
+  if (bookingIds.length > 0) {
+    const { data: bmRows } = await supabase
+      .from('booking_machines')
+      .select('booking_id, machine_id')
+      .in('booking_id', bookingIds);
+    (bmRows ?? []).forEach((bm: { booking_id: string; machine_id: string }) => {
+      const existing = bmByBookingId.get(bm.booking_id) ?? [];
+      existing.push(bm.machine_id);
+      bmByBookingId.set(bm.booking_id, existing);
+    });
+  }
+
   const bookingByMachine = new Map<string, Booking>();
   bookings
     .filter((booking) => booking.status === 'confirmed' || booking.status === 'completed')
     .sort((a, b) => b.start_date.localeCompare(a.start_date))
     .forEach((booking) => {
-      if (!bookingByMachine.has(booking.machine_id)) {
+      // Register all machines from booking_machines.
+      const machineIds = bmByBookingId.get(booking.id) ?? [];
+      machineIds.forEach((mid) => {
+        if (!bookingByMachine.has(mid)) bookingByMachine.set(mid, booking);
+      });
+      // Also register primary machine_id for backward compat.
+      if (booking.machine_id && !bookingByMachine.has(booking.machine_id)) {
         bookingByMachine.set(booking.machine_id, booking);
       }
     });
@@ -568,6 +713,16 @@ export async function getInvoices(status?: string) {
   return (data ?? []) as Invoice[];
 }
 
+export async function getInvoicesByBookingId(bookingId: string) {
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*')
+    .eq('booking_id', bookingId)
+    .order('issue_date', { ascending: false });
+  throwIfError(error);
+  return (data ?? []) as Invoice[];
+}
+
 export async function getInvoiceById(id: string) {
   const { data, error } = await supabase
     .from('invoices')
@@ -612,6 +767,11 @@ export async function updateInvoiceStatus(id: string, status: string) {
   const payload: Record<string, unknown> = { status };
   if (status === 'paid') {
     payload.paid_date = new Date().toISOString().split('T')[0];
+    // When marking fully paid, also set paid_amount = total so outstanding shows $0
+    const { data: current } = await supabase.from('invoices').select('total').eq('id', id).maybeSingle();
+    if (current) {
+      payload.paid_amount = Number(current.total);
+    }
   }
   const { data, error } = await supabase.from('invoices').update(payload).eq('id', id).select('*').single();
   throwIfError(error);
@@ -642,11 +802,20 @@ export async function recordInvoicePayment(invoiceId: string, amount: number) {
 
   const newPaid = Math.min((Number(current.paid_amount) || 0) + amount, Number(current.total));
   const isNowPaid = newPaid >= Number(current.total);
+  const isPartial = newPaid > 0 && !isNowPaid;
+  let nextStatus = current.status;
+  if (isNowPaid) {
+    nextStatus = 'paid';
+  } else if (isPartial) {
+    nextStatus = 'partially_paid';
+  } else if (current.status === 'draft') {
+    nextStatus = 'sent';
+  }
   const { data: updated, error: updateError } = await supabase
     .from('invoices')
     .update({
       paid_amount: newPaid,
-      status: isNowPaid ? 'paid' : current.status === 'draft' ? 'sent' : current.status,
+      status: nextStatus,
       paid_date: isNowPaid ? (current.paid_date ?? new Date().toISOString().split('T')[0]) : current.paid_date,
     })
     .eq('id', invoiceId)
@@ -657,13 +826,16 @@ export async function recordInvoicePayment(invoiceId: string, amount: number) {
 }
 
 export async function getQuotes(status?: string) {
-  let query = supabase.from('quotes').select('*, customers(*), machines(*)').order('created_at', { ascending: false });
+  let query = supabase
+    .from('quotes')
+    .select('*, customers(*), machines(*), bookings(id, status, booking_number)')
+    .order('created_at', { ascending: false });
   if (status) {
     query = query.eq('status', status);
   }
   const { data, error } = await query;
   throwIfError(error);
-  return (data ?? []) as Quote[];
+  return (data ?? []) as (Quote & { bookings?: { id: string; status: string; booking_number: string | null }[] })[];
 }
 
 export async function upsertQuote(
@@ -686,6 +858,11 @@ export async function upsertQuote(
   return data as Quote;
 }
 
+export async function updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<void> {
+  const { error } = await supabase.from('quotes').update({ status }).eq('id', quoteId);
+  throwIfError(error);
+}
+
 export async function convertQuoteToBooking(quoteId: string) {
   const { data, error } = await supabase.rpc('convert_quote_to_booking', { p_quote_id: quoteId });
   throwIfError(error);
@@ -702,7 +879,7 @@ async function buildDocumentShareResponseFallback(
 
   const { data, error } = await supabase
     .from(table)
-    .select('id, status, total, share_token, sent_to, customers(email)')
+    .select('id, status, total, paid_amount, share_token, sent_to, customers(email)')
     .eq('id', documentId)
     .maybeSingle();
   throwIfError(error);
@@ -711,6 +888,7 @@ async function buildDocumentShareResponseFallback(
     id: string;
     status: string | null;
     total: number | null;
+    paid_amount: number | null;
     share_token: string | null;
     sent_to: string | null;
     customers: { email?: string } | { email?: string }[] | null;
@@ -727,7 +905,15 @@ async function buildDocumentShareResponseFallback(
   }
 
   const shareToken = documentRow.share_token ?? createShareToken();
-  const nextStatus = documentRow.status === 'draft' ? 'sent' : documentRow.status;
+  let nextStatus = documentRow.status === 'draft' ? 'sent' : documentRow.status;
+  if (
+    documentType === 'invoice' &&
+    nextStatus === 'sent' &&
+    Number(documentRow.paid_amount ?? 0) > 0 &&
+    Number(documentRow.paid_amount ?? 0) < Number(documentRow.total ?? 0)
+  ) {
+    nextStatus = 'partially_paid';
+  }
   const { error: updateError } = await supabase
     .from(table)
     .update({
@@ -743,7 +929,7 @@ async function buildDocumentShareResponseFallback(
   const hasPositiveBalance = Number(documentRow.total ?? 0) > 0;
   const payableStatuses = documentType === 'quote'
     ? ['draft', 'sent', 'accepted']
-    : ['draft', 'sent', 'overdue'];
+    : ['draft', 'sent', 'overdue', 'partially_paid'];
   const paymentUrl = hasPositiveBalance && payableStatuses.includes(String(documentRow.status ?? ''))
     ? `${shareUrl}?pay=1`
     : null;
@@ -817,8 +1003,49 @@ export async function getPublicDocument(documentType: DocumentType, token: strin
       token,
     },
   });
-  throwIfError(error);
+  if (error) {
+    if (isEdgeFunctionRequestFailure(error)) {
+      return getPublicDocumentFallback(documentType, token);
+    }
+    throwIfError(error);
+  }
   return data as PublicDocumentPayload;
+}
+
+async function getPublicDocumentFallback(documentType: DocumentType, token: string): Promise<PublicDocumentPayload> {
+  const table = documentType === 'invoice' ? 'invoices' : 'quotes';
+  const itemsTable = documentType === 'invoice' ? 'invoice_items' : 'quote_items';
+  const itemFK = documentType === 'invoice' ? 'invoice_id' : 'quote_id';
+
+  const { data: doc, error: docErr } = await supabase
+    .from(table)
+    .select('*')
+    .eq('share_token', token)
+    .maybeSingle();
+
+  if (docErr || !doc) {
+    throw new Error('Document not found');
+  }
+
+  const [companyRes, customerRes, itemsRes] = await Promise.all([
+    supabase.from('companies').select('*').eq('id', doc.company_id).maybeSingle(),
+    supabase.from('customers').select('*').eq('id', doc.customer_id).maybeSingle(),
+    supabase.from(itemsTable).select('*').eq(itemFK, doc.id).order('created_at', { ascending: true }),
+  ]);
+
+  const shareUrl = `${getAppBaseUrl()}/public/${documentType}/${token}`;
+
+  return {
+    document_type: documentType,
+    share_url: shareUrl,
+    payment_url: null,
+    can_pay_online: false,
+    stripe_publishable_key: null,
+    company: (companyRes.data as Company) ?? null,
+    customer: (customerRes.data as Customer) ?? null,
+    document: doc as Invoice | Quote,
+    items: (itemsRes.data ?? []) as InvoiceItem[] | QuoteItem[],
+  };
 }
 
 export async function getStripeConfigStatus() {
@@ -957,7 +1184,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     .reduce((sum, invoice) => sum + Number(invoice.total), 0);
 
   const outstanding = invoices
-    .filter((invoice) => ['sent', 'overdue'].includes(invoice.status))
+    .filter((invoice) => ['sent', 'overdue', 'partially_paid'].includes(invoice.status))
     .reduce((sum, invoice) => sum + Math.max(Number(invoice.total) - Number(invoice.paid_amount ?? 0), 0), 0);
 
   return {
@@ -1263,7 +1490,7 @@ export async function getAttentionItems() {
     supabase
       .from('invoices')
       .select('id, invoice_number, total, due_date, customers(name)')
-      .in('status', ['sent', 'overdue'])
+      .in('status', ['sent', 'overdue', 'partially_paid'])
       .lte('due_date', today)
       .order('due_date', { ascending: true })
       .limit(5),
@@ -1348,29 +1575,30 @@ export async function getMachineProfitability(
   dateFrom: string,
   dateTo: string,
 ): Promise<MachineProfitabilityRow[]> {
+  // Query via booking_machines to support multi-machine bookings.
+  // Revenue per machine = bm.rate_amount × booking_days.
   const { data, error } = await supabase
-    .from('bookings')
-    .select('machine_id, total_amount, hire_subtotal, extras_subtotal, start_date, end_date, machines(id, name, make, model)')
-    .in('status', ['confirmed', 'completed'])
-    .gte('start_date', dateFrom)
-    .lte('start_date', dateTo);
+    .from('booking_machines')
+    .select('machine_id, rate_amount, machines(id, name, make, model), bookings!inner(id, status, start_date, end_date, total_amount, hire_subtotal)')
+    .in('bookings.status', ['confirmed', 'completed'])
+    .gte('bookings.start_date', dateFrom)
+    .lte('bookings.start_date', dateTo);
   throwIfError(error);
 
   const machineMap = new Map<string, MachineProfitabilityRow>();
   for (const row of (data ?? []) as unknown as Array<{
     machine_id: string;
-    total_amount: number | null;
-    hire_subtotal: number | null;
-    start_date: string;
-    end_date: string | null;
+    rate_amount: number;
     machines: { id: string; name: string; make: string | null; model: string | null } | null;
+    bookings: { id: string; start_date: string; end_date: string | null } | null;
   }>) {
     const machine = Array.isArray(row.machines) ? row.machines[0] : row.machines;
-    if (!machine) continue;
-    const start = new Date(row.start_date);
-    const end = row.end_date ? new Date(row.end_date) : start;
+    const booking = Array.isArray(row.bookings) ? row.bookings[0] : row.bookings;
+    if (!machine || !booking) continue;
+    const start = new Date(booking.start_date);
+    const end = booking.end_date ? new Date(booking.end_date) : start;
     const days = Math.max(Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1, 1);
-    const revenue = Number(row.total_amount ?? row.hire_subtotal ?? 0);
+    const revenue = Number(row.rate_amount) * days;
     const existing = machineMap.get(row.machine_id);
     if (existing) {
       existing.job_count += 1;
