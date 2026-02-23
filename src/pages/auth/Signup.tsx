@@ -12,6 +12,7 @@ import { AddressAutocomplete } from '../../components/ui/AddressAutocomplete';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
+import { LogoMark } from '../../components/ui/Logo';
 
 const companySchema = z.object({
   name: z.string().min(1, 'Company name is required'),
@@ -147,15 +148,11 @@ export default function Signup() {
         {/* Logo */}
         <div className="relative z-10">
           <Link to="/" className="inline-flex items-center gap-3">
-            <div
-              className="flex size-10 items-center justify-center rounded-xl font-black text-white text-sm shadow-lg animate-glow-pulse"
-              style={{
-                background: 'linear-gradient(135deg, #c084fc 0%, #818cf8 50%, #38bdf8 100%)',
-                boxShadow: '0 0 24px rgba(192,132,252,0.45)',
-              }}
-            >
-              H
-            </div>
+            <LogoMark
+              size={40}
+              className="animate-glow-pulse"
+              style={{ filter: 'drop-shadow(0 0 18px rgba(192,132,252,0.45))' }}
+            />
             <span className="text-xl font-black tracking-tight text-slate-900">Hasky</span>
           </Link>
         </div>
@@ -239,12 +236,7 @@ export default function Signup() {
         >
           {/* Mobile logo */}
           <Link to="/" className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <div
-              className="flex size-9 items-center justify-center rounded-xl font-black text-white text-sm"
-              style={{ background: 'linear-gradient(135deg, #c084fc, #818cf8, #38bdf8)' }}
-            >
-              H
-            </div>
+            <LogoMark size={36} />
             <span className="text-lg font-black tracking-tight text-slate-900">Hasky</span>
           </Link>
 

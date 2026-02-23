@@ -17,21 +17,21 @@ const getStripePublicConfig = async (
   adminClient: ReturnType<typeof createClient>,
   companyId: string,
 ) => {
-  const { data, error } = await adminClient
-    .from('company_stripe_keys')
-    .select('publishable_key, secret_key, is_active')
-    .eq('company_id', companyId)
-    .maybeSingle();
+  try {
+    const { data, error } = await adminClient
+      .from('company_stripe_keys')
+      .select('publishable_key, secret_key, is_active')
+      .eq('company_id', companyId)
+      .maybeSingle();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (data?.is_active && data.publishable_key && data.secret_key) {
-    return {
-      publishableKey: data.publishable_key,
-      configured: true,
-    };
+    if (!error && data?.is_active && data.publishable_key && data.secret_key) {
+      return {
+        publishableKey: data.publishable_key,
+        configured: true,
+      };
+    }
+  } catch {
+    // Table may not exist yet
   }
 
   const fallbackPublishable = Deno.env.get('STRIPE_PUBLISHABLE_KEY') ?? '';
@@ -96,10 +96,11 @@ Deno.serve(async (req) => {
         return jsonResponse(404, { error: 'Document not found' });
       }
 
-      const [companyRes, customerRes, itemsRes] = await Promise.all([
+      const [companyRes, customerRes, itemsRes, settingsRes] = await Promise.all([
         adminClient.from('companies').select('*').eq('id', invoice.company_id).maybeSingle(),
         adminClient.from('customers').select('*').eq('id', invoice.customer_id).maybeSingle(),
         adminClient.from('invoice_items').select('*').eq('invoice_id', invoice.id).order('created_at', { ascending: true }),
+        adminClient.from('company_settings').select('bank_name, bank_bsb, bank_account_number, bank_account_name').eq('company_id', invoice.company_id).maybeSingle(),
       ]);
 
       if (companyRes.error || customerRes.error || itemsRes.error) {
@@ -126,6 +127,7 @@ Deno.serve(async (req) => {
         customer: customerRes.data,
         document: invoice,
         items: itemsRes.data ?? [],
+        bank_details: settingsRes?.data ?? null,
       });
     }
 
@@ -139,10 +141,11 @@ Deno.serve(async (req) => {
       return jsonResponse(404, { error: 'Document not found' });
     }
 
-    const [companyRes, customerRes, itemsRes] = await Promise.all([
+    const [companyRes, customerRes, itemsRes, settingsRes] = await Promise.all([
       adminClient.from('companies').select('*').eq('id', quote.company_id).maybeSingle(),
       adminClient.from('customers').select('*').eq('id', quote.customer_id).maybeSingle(),
       adminClient.from('quote_items').select('*').eq('quote_id', quote.id).order('created_at', { ascending: true }),
+      adminClient.from('company_settings').select('bank_name, bank_bsb, bank_account_number, bank_account_name').eq('company_id', quote.company_id).maybeSingle(),
     ]);
 
     if (companyRes.error || customerRes.error || itemsRes.error) {
@@ -168,6 +171,7 @@ Deno.serve(async (req) => {
       customer: customerRes.data,
       document: quote,
       items: itemsRes.data ?? [],
+      bank_details: settingsRes?.data ?? null,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';

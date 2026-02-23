@@ -142,6 +142,7 @@ export default function PublicDocumentPage() {
           customer={payload.customer}
           invoice={document as Invoice}
           items={items as InvoiceItem[]}
+          bankDetails={payload.bank_details}
         />
       ) : (
         <QuotePreview
@@ -149,6 +150,7 @@ export default function PublicDocumentPage() {
           customer={payload.customer}
           quote={document as Quote}
           items={items as QuoteItem[]}
+          bankDetails={payload.bank_details}
         />
       )}
 

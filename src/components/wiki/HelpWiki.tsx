@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { startTransition, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Search, ChevronDown, Play } from 'lucide-react';
@@ -216,19 +216,16 @@ export function HelpWiki({ open, onClose, onLaunchTour }: HelpWikiProps) {
   const [activeId, setActiveId] = useState('getting-started');
   const [search, setSearch] = useState('');
   const [openAccordions, setOpenAccordions] = useState<Set<string>>(new Set(['gs-0']));
-  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
-
-  // Portal setup (mirrors Modal.tsx)
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
+  const [portalRoot] = useState<HTMLElement | null>(() => {
+    if (typeof document === 'undefined') return null;
     let root = document.getElementById('modal-root');
     if (!root) {
       root = document.createElement('div');
       root.id = 'modal-root';
       document.body.appendChild(root);
     }
-    setPortalRoot(root);
-  }, []);
+    return root;
+  });
 
   // Escape key (mirrors Modal.tsx)
   useEffect(() => {
@@ -257,9 +254,11 @@ export function HelpWiki({ open, onClose, onLaunchTour }: HelpWikiProps) {
   // Reset state on open
   useEffect(() => {
     if (open) {
-      setSearch('');
-      setActiveId('getting-started');
-      setOpenAccordions(new Set(['gs-0']));
+      startTransition(() => {
+        setSearch('');
+        setActiveId('getting-started');
+        setOpenAccordions(new Set(['gs-0']));
+      });
     }
   }, [open]);
 
@@ -267,7 +266,9 @@ export function HelpWiki({ open, onClose, onLaunchTour }: HelpWikiProps) {
   useEffect(() => {
     const article = WIKI_ARTICLES.find((a) => a.id === activeId);
     if (article?.steps[0]) {
-      setOpenAccordions(new Set([article.steps[0].id]));
+      startTransition(() => {
+        setOpenAccordions(new Set([article.steps[0].id]));
+      });
     }
   }, [activeId]);
 

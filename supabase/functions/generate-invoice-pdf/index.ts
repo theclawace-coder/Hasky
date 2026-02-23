@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
 
   const { data: settings } = await adminClient
     .from('company_settings')
-    .select('bank_bsb, bank_account_number, bank_account_name, default_invoice_notes')
+    .select('bank_name, bank_bsb, bank_account_number, bank_account_name, default_invoice_notes')
     .eq('company_id', inv.company_id)
     .maybeSingle();
 
@@ -245,7 +245,7 @@ Deno.serve(async (req) => {
     const bg = idx % 2 === 1 ? LIGHT : WHITE;
     page.drawRectangle({ x: margin, y: y - rowH, width: width - margin * 2, height: rowH, color: bg });
     // Truncate long descriptions
-    const desc = item.description.length > 55 ? item.description.slice(0, 52) + '…' : item.description;
+    const desc = item.description.length > 65 ? item.description.slice(0, 62) + '…' : item.description;
     text(desc, colX.desc + 8, y - 13, { size: 9, color: BLACK });
     text(String(item.quantity), colX.qty + 8, y - 13, { size: 9, color: SLATE });
     text(fmt(Number(item.unit_price)), colX.rate + 8, y - 13, { size: 9, color: SLATE });
@@ -294,18 +294,20 @@ Deno.serve(async (req) => {
 
   // ── Bank / Payment details ────────────────────────────────────────────────
   if (settings?.bank_account_number && inv.status !== 'paid') {
-    page.drawRectangle({ x: margin, y: y - 60, width: width - margin * 2, height: 60, color: LIGHT, borderRadius: 4 });
-    text('Payment Details', margin + 12, y - 12, { font: fontBold, size: 9, color: BLACK });
     const bankLines = [
+      settings.bank_name ? `Bank: ${settings.bank_name}` : null,
       settings.bank_account_name ? `Account Name: ${settings.bank_account_name}` : null,
       settings.bank_bsb ? `BSB: ${settings.bank_bsb}` : null,
       `Account: ${settings.bank_account_number}`,
       `Reference: ${inv.invoice_number}`,
     ].filter(Boolean) as string[];
+    const boxHeight = 14 + bankLines.length * 11 + 8;
+    page.drawRectangle({ x: margin, y: y - boxHeight, width: width - margin * 2, height: boxHeight, color: LIGHT, borderRadius: 4 });
+    text('Payment Details', margin + 12, y - 12, { font: fontBold, size: 9, color: BLACK });
     bankLines.forEach((line, i) => {
-      text(line, margin + 12, y - 24 - i * 10, { size: 8.5, color: SLATE });
+      text(line, margin + 12, y - 24 - i * 11, { size: 8.5, color: SLATE });
     });
-    y -= 72;
+    y -= boxHeight + 12;
   }
 
   // ── Notes ─────────────────────────────────────────────────────────────────

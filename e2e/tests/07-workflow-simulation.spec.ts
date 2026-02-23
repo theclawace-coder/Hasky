@@ -20,6 +20,8 @@
 
 import { test, expect } from "@playwright/test";
 
+const DEFAULT_E2E_BASE_URL = "http://127.0.0.1:5173";
+
 // ── Fake business data ───────────────────────────────────────────────────────
 
 const CUSTOMER = {
@@ -68,7 +70,30 @@ function note(n: StepNote) {
 async function ensureLoggedIn(page: import("@playwright/test").Page, baseURL: string) {
   await page.goto(`${baseURL}/dashboard`, { waitUntil: "domcontentloaded" });
   const url = page.url();
-  if (url.includes("/login") || url.includes("/signup")) {
+  const loginButton = page.getByRole("button", { name: /sign in to hasky/i });
+  const loginHeading = page.getByRole("heading", { name: /welcome back/i });
+  const showingLoginUi = (await loginButton.count()) > 0 || (await loginHeading.count()) > 0;
+
+  if (url.includes("/login") || url.includes("/signup") || showingLoginUi) {
+    const email = process.env.E2E_BASIC_EMAIL;
+    const password = process.env.E2E_BASIC_PASSWORD;
+
+    // Fallback for stale storage-state sessions: sign in with env credentials when available.
+    if (email && password && showingLoginUi) {
+      await page.getByPlaceholder(/you@example\.com/i).first().fill(email);
+      await page.getByPlaceholder(/••••••••/i).first().fill(password);
+      await loginButton.first().click();
+      await page.waitForTimeout(1800);
+
+      const stillOnLogin = (await loginButton.count()) > 0
+        || page.url().includes("/login")
+        || page.url().includes("/signup");
+      if (!stillOnLogin) {
+        note({ step: "Auth", observation: "Storage state stale; recovered by env credential login", friction: 2, type: "warning" });
+        return;
+      }
+    }
+
     note({
       step: "Auth",
       observation: "Auth state not present or expired — redirected to login. Supabase session needs a refresh token that is still valid.",
@@ -96,7 +121,7 @@ test.describe("Pete the Tradie — full hire workflow", () => {
   // STEP 1 — Dashboard orientation
   // ────────────────────────────────────────────────────────────────────────────
   test("1. Dashboard loads and shows key widgets", async ({ page, baseURL }) => {
-    await ensureLoggedIn(page, baseURL ?? "http://127.0.0.1:3000");
+    await ensureLoggedIn(page, baseURL ?? DEFAULT_E2E_BASE_URL);
 
     // Quick Action cards
     const newJobBtn = page.getByRole("link", { name: /new job/i }).or(page.getByText(/new job/i));
@@ -146,14 +171,16 @@ test.describe("Pete the Tradie — full hire workflow", () => {
   // STEP 2 — Navigate to Customers (pre-adding a lead)
   // ────────────────────────────────────────────────────────────────────────────
   test("2. Pre-add customer before creating a job", async ({ page, baseURL }) => {
-    await ensureLoggedIn(page, baseURL ?? "http://127.0.0.1:3000");
+    await ensureLoggedIn(page, baseURL ?? DEFAULT_E2E_BASE_URL);
     await page.goto(`${baseURL}/customers`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("heading", { name: /^customers$/i }).first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
 
     const addCustomerBtn = page
-      .getByRole("button", { name: /add customer|new customer|add client/i })
+      .getByTestId("add-customer-button")
+      .or(page.getByRole("button", { name: /add customer|new customer|add client/i }))
       .or(page.getByText(/add customer|new customer/i).first());
 
-    const hasAddButton = await addCustomerBtn.count() > 0;
+    const hasAddButton = await addCustomerBtn.first().isVisible().catch(() => false);
 
     note({
       step: "Customers",
@@ -204,7 +231,7 @@ test.describe("Pete the Tradie — full hire workflow", () => {
   // STEP 3 — New Booking Wizard: Step 1 (Machine selection)
   // ────────────────────────────────────────────────────────────────────────────
   test("3. New Job Wizard — Step 1: Select machine", async ({ page, baseURL }) => {
-    await ensureLoggedIn(page, baseURL ?? "http://127.0.0.1:3000");
+    await ensureLoggedIn(page, baseURL ?? DEFAULT_E2E_BASE_URL);
     await page.goto(`${baseURL}/bookings/new`, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1500); // Wait for machines to load
 
@@ -246,9 +273,20 @@ test.describe("Pete the Tradie — full hire workflow", () => {
       return;
     }
 
-    await machineCards.first().click();
+    const firstEnabledCard = page.locator('[data-testid="machine-card"]:not([disabled])').first();
+    const enabledMachineCount = await page.locator('[data-testid="machine-card"]:not([disabled])').count();
+    if (enabledMachineCount === 0) {
+      note({
+        step: "Wizard-Step1",
+        observation: "All visible machine cards are currently disabled for selected dates.",
+        friction: 4,
+        type: "bug",
+      });
+      return;
+    }
+    await firstEnabledCard.click();
     await page.waitForTimeout(300);
-    note({ step: "Wizard-Step1", observation: "Machine selected via data-testid. Visual ring + checkmark shows.", friction: 1, type: "ok" });
+    note({ step: "Wizard-Step1", observation: "Machine selected via enabled data-testid card. Visual ring + checkmark shows.", friction: 1, type: "ok" });
 
     // Next button — now enabled because both date and machine are set
     const nextBtn = page.getByRole("button", { name: /next.*client/i });
@@ -271,7 +309,7 @@ test.describe("Pete the Tradie — full hire workflow", () => {
   // STEP 4 — Wizard Step 2: Customer selection / add new
   // ────────────────────────────────────────────────────────────────────────────
   test("4. New Job Wizard — Step 2: Add new customer inline", async ({ page, baseURL }) => {
-    await ensureLoggedIn(page, baseURL ?? "http://127.0.0.1:3000");
+    await ensureLoggedIn(page, baseURL ?? DEFAULT_E2E_BASE_URL);
 
     // Navigate fresh and walk through step 1 correctly (date first, then machine)
     await page.goto(`${baseURL}/bookings/new`, { waitUntil: "domcontentloaded" });
@@ -282,8 +320,11 @@ test.describe("Pete the Tradie — full hire workflow", () => {
     if (await startDate.count() > 0) { await startDate.fill(JOB.startDate); await page.waitForTimeout(600); }
 
     // Select machine via data-testid
-    const firstCard = page.locator('[data-testid="machine-card"]').first();
-    if (await firstCard.count() > 0) { await firstCard.click(); await page.waitForTimeout(300); }
+    const firstEnabledCard = page.locator('[data-testid="machine-card"]:not([disabled])').first();
+    if (await firstEnabledCard.count() > 0) {
+      await firstEnabledCard.click();
+      await page.waitForTimeout(300);
+    }
 
     const nextBtn = page.getByRole("button", { name: /next.*client/i });
     if (await nextBtn.isEnabled()) await nextBtn.click();
@@ -358,15 +399,27 @@ test.describe("Pete the Tradie — full hire workflow", () => {
   // STEP 5 — Wizard Step 3: Job details (dates, rate, payment plan)
   // ────────────────────────────────────────────────────────────────────────────
   test("5. New Job Wizard — Step 3: Job details", async ({ page, baseURL }) => {
-    await ensureLoggedIn(page, baseURL ?? "http://127.0.0.1:3000");
+    await ensureLoggedIn(page, baseURL ?? DEFAULT_E2E_BASE_URL);
     await page.goto(`${baseURL}/bookings/new`, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1500);
 
-    // Step 1: enter date first, then select machine
+    // Step 1: enter both dates, then select machine
     const startDate = page.locator('input[type="date"]').first();
-    if (await startDate.count() > 0) { await startDate.fill(JOB.startDate); await page.waitForTimeout(600); }
-    const firstCard = page.locator('[data-testid="machine-card"]').first();
-    if (await firstCard.count() > 0) { await firstCard.click(); await page.waitForTimeout(300); }
+    const endDate = page.locator('input[type="date"]').nth(1);
+    if (await startDate.count() > 0) { await startDate.fill(JOB.startDate); await page.waitForTimeout(400); }
+    if (await endDate.count() > 0) { await endDate.fill(JOB.endDate); await page.waitForTimeout(400); }
+    const firstEnabledCard = page.locator('[data-testid="machine-card"]:not([disabled])').first();
+    if (await firstEnabledCard.count() === 0) {
+      note({
+        step: "Wizard-Step3",
+        observation: "BLOCKER: No selectable machines for the chosen date range.",
+        friction: 5,
+        type: "bug",
+      });
+      return;
+    }
+    await firstEnabledCard.click();
+    await page.waitForTimeout(300);
     const next1 = page.getByRole("button", { name: /next.*client/i });
     if (await next1.isEnabled()) { await next1.click(); await page.waitForTimeout(500); }
 
@@ -467,18 +520,68 @@ test.describe("Pete the Tradie — full hire workflow", () => {
   // STEP 6 — Wizard Step 4: Review & Create
   // ────────────────────────────────────────────────────────────────────────────
   test("6. New Job Wizard — Step 4: Review and create", async ({ page, baseURL }) => {
-    await ensureLoggedIn(page, baseURL ?? "http://127.0.0.1:3000");
-    // NOTE: In a real continuous test this would follow from step 5.
-    // Here we inspect what the review step looks like by navigating fresh.
-    await page.goto(`${baseURL}/bookings/new`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(1000);
+    const resolvedBaseUrl = baseURL ?? DEFAULT_E2E_BASE_URL;
+    await ensureLoggedIn(page, resolvedBaseUrl);
 
-    // The review step text
+    // Navigate fresh and walk through steps 1→3 so we can verify real Step 4 copy.
+    await page.goto(`${resolvedBaseUrl}/bookings/new`, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1500);
+    expect(await page.getByRole("button", { name: /sign in to hasky/i }).count()).toBe(0);
+
+    // Step 1: find a date window with at least one selectable machine
+    const startDate = page.locator('input[type="date"]').first();
+    const endDate = page.locator('input[type="date"]').nth(1);
+    let hasSelectableMachine = false;
+    for (let dayOffset = 3; dayOffset <= 21; dayOffset += 1) {
+      const startCandidate = new Date();
+      startCandidate.setDate(startCandidate.getDate() + dayOffset);
+      const endCandidate = new Date(startCandidate);
+      endCandidate.setDate(endCandidate.getDate() + 4);
+
+      const startIso = startCandidate.toISOString().split('T')[0];
+      const endIso = endCandidate.toISOString().split('T')[0];
+
+      if (await startDate.count() > 0) await startDate.fill(startIso);
+      if (await endDate.count() > 0) await endDate.fill(endIso);
+      await page.waitForTimeout(300);
+
+      const firstEnabledCard = page.locator('[data-testid="machine-card"]:not([disabled])').first();
+      if (await firstEnabledCard.count() > 0) {
+        await firstEnabledCard.click();
+        await page.waitForTimeout(300);
+        hasSelectableMachine = true;
+        break;
+      }
+    }
+    expect(hasSelectableMachine).toBeTruthy();
+    const next1 = page.getByRole("button", { name: /next.*client/i });
+    expect(await next1.count()).toBeGreaterThan(0);
+    if (await next1.isEnabled()) { await next1.click(); await page.waitForTimeout(500); }
+
+    // Step 2: select first available customer in list
+    const firstCustomer = page.locator('button[type="button"]').filter({ hasText: /Pty|Ltd|constructions|digger/i }).first();
+    if (await firstCustomer.count() > 0) { await firstCustomer.click(); await page.waitForTimeout(300); }
+    const next2 = page.getByRole("button", { name: /next.*details/i });
+    if (await next2.isEnabled()) { await next2.click(); await page.waitForTimeout(500); }
+
+    // Step 3: continue to review
+    const next3 = page.getByRole("button", { name: /next|continue|review/i }).first();
+    if (await next3.count() > 0) { await next3.click(); await page.waitForTimeout(700); }
+
+    const pendingCopy = page.getByText(/this job will be saved as\s*pending/i);
+    const quoteCopy = page.getByText(/saved as\s*(a\s*)?quote/i);
+
+    const hasPendingCopy = await pendingCopy.count() > 0;
+    const hasQuoteCopy = await quoteCopy.count() > 0;
+
+    expect(hasPendingCopy).toBeTruthy();
+    expect(hasQuoteCopy).toBeFalsy();
+
     note({
       step: "Wizard-Step4",
-      observation: 'CONFUSION: Step 4 says "This will be saved as a Quote". But user clicked "New Job" from Dashboard. They expect a Job, not a Quote. Terminology mismatch causes confusion about what was actually created.',
-      friction: 4,
-      type: "bug",
+      observation: `Terminology check passed: review step uses "saved as Pending" and does not mention "saved as Quote" (pending=${hasPendingCopy}, quote=${hasQuoteCopy})`,
+      friction: 1,
+      type: "ok",
     });
 
     note({
@@ -504,7 +607,7 @@ test.describe("Pete the Tradie — full hire workflow", () => {
   // STEP 7 — BookingDetail: Actions panel audit
   // ────────────────────────────────────────────────────────────────────────────
   test("7. BookingDetail — payment recording and confirmation UX", async ({ page, baseURL }) => {
-    await ensureLoggedIn(page, baseURL ?? "http://127.0.0.1:3000");
+    await ensureLoggedIn(page, baseURL ?? DEFAULT_E2E_BASE_URL);
     // Navigate to bookings list and click first booking
     await page.goto(`${baseURL}/bookings`, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1500);
@@ -617,7 +720,7 @@ test.describe("Pete the Tradie — full hire workflow", () => {
   // STEP 8 — InvoiceDetail: Send and mark paid
   // ────────────────────────────────────────────────────────────────────────────
   test("8. InvoiceDetail — send invoice and mark paid", async ({ page, baseURL }) => {
-    await ensureLoggedIn(page, baseURL ?? "http://127.0.0.1:3000");
+    await ensureLoggedIn(page, baseURL ?? DEFAULT_E2E_BASE_URL);
     await page.goto(`${baseURL}/invoices`, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1500);
 
@@ -701,7 +804,7 @@ test.describe("Pete the Tradie — full hire workflow", () => {
   // STEP 9 — Complete the hire
   // ────────────────────────────────────────────────────────────────────────────
   test("9. BookingDetail — complete hire", async ({ page, baseURL }) => {
-    await ensureLoggedIn(page, baseURL ?? "http://127.0.0.1:3000");
+    await ensureLoggedIn(page, baseURL ?? DEFAULT_E2E_BASE_URL);
     await page.goto(`${baseURL}/bookings`, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1500);
 

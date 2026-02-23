@@ -1,4 +1,5 @@
 import { formatCurrency, formatDate } from '../../lib/utils';
+import type { BankDetails } from '../invoices/InvoicePreview';
 import type { Company, Customer, Quote, QuoteItem } from '../../types';
 
 interface QuotePreviewProps {
@@ -6,9 +7,10 @@ interface QuotePreviewProps {
   customer: Customer | null;
   quote: Quote;
   items: QuoteItem[];
+  bankDetails?: BankDetails | null;
 }
 
-export function QuotePreview({ company, customer, quote, items }: QuotePreviewProps) {
+export function QuotePreview({ company, customer, quote, items, bankDetails }: QuotePreviewProps) {
   return (
     <div className="print-surface rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
       {/* Header: company details + QUOTE label */}
@@ -92,6 +94,40 @@ export function QuotePreview({ company, customer, quote, items }: QuotePreviewPr
           <span>Total (inc. GST)</span><span>{formatCurrency(quote.total)}</span>
         </div>
       </div>
+
+      {bankDetails?.bank_account_number && quote.status !== 'paid' ? (
+        <div className="mt-6 rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-blue-800 mb-2">Payment Details</p>
+          <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2 text-slate-700">
+            {bankDetails.bank_name ? (
+              <div className="flex gap-2">
+                <span className="font-medium text-slate-500 min-w-[110px]">Bank:</span>
+                <span>{bankDetails.bank_name}</span>
+              </div>
+            ) : null}
+            {bankDetails.bank_account_name ? (
+              <div className="flex gap-2">
+                <span className="font-medium text-slate-500 min-w-[110px]">Account Name:</span>
+                <span>{bankDetails.bank_account_name}</span>
+              </div>
+            ) : null}
+            {bankDetails.bank_bsb ? (
+              <div className="flex gap-2">
+                <span className="font-medium text-slate-500 min-w-[110px]">BSB:</span>
+                <span>{bankDetails.bank_bsb}</span>
+              </div>
+            ) : null}
+            <div className="flex gap-2">
+              <span className="font-medium text-slate-500 min-w-[110px]">Account No:</span>
+              <span>{bankDetails.bank_account_number}</span>
+            </div>
+            <div className="flex gap-2 sm:col-span-2">
+              <span className="font-medium text-slate-500 min-w-[110px]">Reference:</span>
+              <span className="font-semibold">{quote.quote_number}</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {quote.notes ? (
         <div className="mt-6 rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm text-slate-600">

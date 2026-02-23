@@ -36,7 +36,7 @@ export function Layout({ children }: PropsWithChildren) {
   return (
     <div className="relative min-h-screen">
       {/* ── Ambient background blobs ─────────────────────────────── */}
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      <div className="pointer-events-none fixed inset-0 -z-10 hidden overflow-hidden sm:block">
         <div
           className="animate-blob absolute -right-48 -top-48 size-[700px] rounded-full opacity-[0.055]"
           style={{ background: 'radial-gradient(circle, #c084fc 0%, #818cf8 60%, transparent 100%)' }}

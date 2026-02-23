@@ -36,12 +36,9 @@ function getModalRoot() {
 }
 
 export function Modal({ open, title, description, onClose, children, size = 'md' }: ModalProps) {
-  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    setPortalRoot(getModalRoot());
-  }, []);
+  const [portalRoot] = useState<HTMLElement | null>(() =>
+    typeof document !== 'undefined' ? getModalRoot() : null,
+  );
 
   // Close on Escape key
   useEffect(() => {

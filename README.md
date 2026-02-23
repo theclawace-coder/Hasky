@@ -1,4 +1,4 @@
-﻿# HireBase
+# HireBase
 
 HireBase is a free CRM for Australian machine hire companies.
 
@@ -60,6 +60,7 @@ PLATFORM_ADMIN_EMAIL=
 - `supabase/functions/stripe-webhook/index.ts`
 - `supabase/functions/get-stripe-config/index.ts`
 - `supabase/functions/set-stripe-config/index.ts`
+- `supabase/functions/notify-new-user/index.ts` (emails product owner on new signup)
 
 5. Configure edge function secrets:
 
@@ -72,8 +73,18 @@ PLATFORM_ADMIN_EMAIL=
 - `STRIPE_WEBHOOK_SECRET`
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
+- `PLATFORM_ADMIN_EMAIL` (for new-user notifications and promote-platform-admin)
 
-6. Run app:
+6. Enable new-user notifications (optional): run this SQL in Supabase SQL Editor to notify the product owner when someone signs up:
+
+```sql
+INSERT INTO public.webhook_config (key, value) VALUES
+  ('notify_new_user_url', 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/notify-new-user'),
+  ('notify_new_user_anon_key', 'YOUR_ANON_KEY')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+```
+
+7. Run app:
 
 ```bash
 npm run dev

@@ -30,7 +30,10 @@ param(
   [string]$SupabaseAnonKey,
 
   [Parameter(Mandatory = $false)]
-  [string]$SupabaseUrl
+  [string]$SupabaseUrl,
+
+  [Parameter(Mandatory = $false)]
+  [string]$PlatformAdminEmail
 )
 
 $ErrorActionPreference = "Stop"
@@ -45,10 +48,7 @@ npx supabase db push --project-ref $ProjectRef
 # Deploy auth-required functions (default verify_jwt=true)
 $jwtFunctions = @(
   "invite-team-member",
-  "promote-platform-admin",
-  "send-document-email",
-  "get-stripe-config",
-  "set-stripe-config"
+  "promote-platform-admin"
 )
 
 foreach ($fn in $jwtFunctions) {
@@ -56,11 +56,17 @@ foreach ($fn in $jwtFunctions) {
   npx supabase functions deploy $fn --project-ref $ProjectRef
 }
 
-# Deploy public/webhook functions
+# Deploy public/webhook functions (verify_jwt=false; these handle auth internally or are public)
 $publicFunctions = @(
   "create-payment-intent",
   "get-public-document",
-  "stripe-webhook"
+  "stripe-webhook",
+  "notify-new-user",
+  "get-stripe-config",
+  "set-stripe-config",
+  "send-document-email",
+  "send-payment-reminder",
+  "generate-invoice-pdf"
 )
 
 foreach ($fn in $publicFunctions) {
@@ -79,6 +85,7 @@ if ($StripeWebhookSecret) { $secretPairs += "STRIPE_WEBHOOK_SECRET=$StripeWebhoo
 if ($SupabaseServiceRoleKey) { $secretPairs += "SUPABASE_SERVICE_ROLE_KEY=$SupabaseServiceRoleKey" }
 if ($SupabaseAnonKey) { $secretPairs += "SUPABASE_ANON_KEY=$SupabaseAnonKey" }
 if ($SupabaseUrl) { $secretPairs += "SUPABASE_URL=$SupabaseUrl" }
+if ($PlatformAdminEmail) { $secretPairs += "PLATFORM_ADMIN_EMAIL=$PlatformAdminEmail" }
 
 if ($secretPairs.Count -gt 0) {
   Write-Host "Setting provided secrets"

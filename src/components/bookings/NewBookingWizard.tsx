@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import {
@@ -208,6 +208,7 @@ export function NewBookingWizard({
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [showExtra, setShowExtra] = useState(false);
+  const [dateRangeMessage, setDateRangeMessage] = useState<string | null>(null);
 
   const [values, setValues] = useState<WizardValues>({
     machines: defaultMachine ? [defaultMachine] : [],
@@ -258,14 +259,16 @@ export function NewBookingWizard({
   // Auto-remove any selected machines that become conflicted when dates change.
   useEffect(() => {
     if (!selectedMachineIdsKey) return;
-    setValues((current) => {
-      const newMachines = current.machines.filter((m) => !conflictedMachineIds.has(m.id));
-      if (newMachines.length === current.machines.length) return current;
-      const newRates = { ...current.machineRates };
-      current.machines
-        .filter((m) => conflictedMachineIds.has(m.id))
-        .forEach((m) => { delete newRates[m.id]; });
-      return { ...current, machines: newMachines, machineRates: newRates };
+    startTransition(() => {
+      setValues((current) => {
+        const newMachines = current.machines.filter((m) => !conflictedMachineIds.has(m.id));
+        if (newMachines.length === current.machines.length) return current;
+        const newRates = { ...current.machineRates };
+        current.machines
+          .filter((m) => conflictedMachineIds.has(m.id))
+          .forEach((m) => { delete newRates[m.id]; });
+        return { ...current, machines: newMachines, machineRates: newRates };
+      });
     });
   }, [conflictedMachineIds, selectedMachineIdsKey]);
 
@@ -353,6 +356,11 @@ export function NewBookingWizard({
   };
 
   const anySelectedConflicted = values.machines.some((m) => conflictedMachineIds.has(m.id));
+  const hasInvalidDateRange = Boolean(
+    values.startDate
+    && values.endDate
+    && values.endDate < values.startDate,
+  );
 
   // ── Step 1: Machine ──────────────────────────────────────────────────────────
 
@@ -374,12 +382,26 @@ export function NewBookingWizard({
             <input
               type="date"
               value={values.startDate}
-              onChange={(e) => setValues((v) => ({
-                ...v,
-                startDate: e.target.value,
-                endDate: v.endDate && v.endDate >= e.target.value ? v.endDate : e.target.value,
-              }))}
-              className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
+              onChange={(e) => {
+                const nextStartDate = e.target.value;
+                const adjustedEndDate = Boolean(values.endDate) && values.endDate < nextStartDate;
+                setValues((v) => {
+                  const shouldAlignEndDate = !v.endDate || adjustedEndDate;
+                  return {
+                    ...v,
+                    startDate: nextStartDate,
+                    endDate: shouldAlignEndDate ? nextStartDate : v.endDate,
+                  };
+                });
+                setDateRangeMessage(adjustedEndDate ? 'End date cannot be before start date. End date was adjusted.' : null);
+              }}
+              aria-invalid={hasInvalidDateRange}
+              className={cn(
+                'w-full rounded-xl bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2',
+                hasInvalidDateRange
+                  ? 'border border-red-300 focus:border-red-400 focus:ring-red-400/20'
+                  : 'border border-violet-200 focus:border-violet-400 focus:ring-violet-400/20',
+              )}
             />
           </div>
           <div>
@@ -390,10 +412,37 @@ export function NewBookingWizard({
               type="date"
               value={values.endDate}
               min={values.startDate}
-              onChange={(e) => setValues((v) => ({ ...v, endDate: e.target.value }))}
-              className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
+              onChange={(e) => {
+                const nextEndDate = e.target.value;
+                let adjustedEndDate = false;
+                setValues((v) => {
+                  if (v.startDate && nextEndDate && nextEndDate < v.startDate) {
+                    adjustedEndDate = true;
+                    return { ...v, endDate: v.startDate };
+                  }
+                  return { ...v, endDate: nextEndDate };
+                });
+                setDateRangeMessage(adjustedEndDate ? 'End date cannot be before start date. End date was adjusted.' : null);
+              }}
+              aria-invalid={hasInvalidDateRange}
+              className={cn(
+                'w-full rounded-xl bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2',
+                hasInvalidDateRange
+                  ? 'border border-red-300 focus:border-red-400 focus:ring-red-400/20'
+                  : 'border border-violet-200 focus:border-violet-400 focus:ring-violet-400/20',
+              )}
             />
           </div>
+          {hasInvalidDateRange ? (
+            <p className="sm:col-span-2 text-xs text-red-700">
+              End date cannot be earlier than the start date.
+            </p>
+          ) : null}
+          {!hasInvalidDateRange && dateRangeMessage ? (
+            <p className="sm:col-span-2 text-xs text-amber-700">
+              {dateRangeMessage}
+            </p>
+          ) : null}
           {values.startDate && conflictedMachineIds.size > 0 ? (
             <p className="sm:col-span-2 text-xs text-amber-700">
               {conflictedMachineIds.size} machine{conflictedMachineIds.size > 1 ? 's are' : ' is'} already booked for these dates and shown below.
@@ -511,6 +560,7 @@ export function NewBookingWizard({
             values.machines.length === 0
             || !values.startDate
             || !values.endDate
+            || hasInvalidDateRange
             || anySelectedConflicted
           }
           nextLabel="Next: Choose Client"

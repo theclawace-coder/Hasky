@@ -124,8 +124,9 @@ interface PaymentModalProps {
   open: boolean;
   onClose: () => void;
   invoiceId?: string;
+  bookingId?: string;
   shareToken?: string;
-  documentType?: DocumentType;
+  documentType?: DocumentType | 'booking';
   documentNumber: string;
   amount: number;
   publishableKey?: string | null;
@@ -136,6 +137,7 @@ export function PaymentModal({
   open,
   onClose,
   invoiceId,
+  bookingId,
   shareToken,
   documentType = 'invoice',
   documentNumber,
@@ -160,7 +162,9 @@ export function PaymentModal({
       try {
         const body = shareToken
           ? { document_type: documentType, share_token: shareToken, currency: 'aud' }
-          : { invoice_id: invoiceId, amount, currency: 'aud' };
+          : bookingId
+            ? { booking_id: bookingId, amount, currency: 'aud' }
+            : { invoice_id: invoiceId, amount, currency: 'aud' };
 
         const headers: Record<string, string> = {};
         if (!shareToken) {
@@ -177,7 +181,16 @@ export function PaymentModal({
         });
 
         if (res.error) {
-          throw new Error(res.error.message);
+          let message = res.error.message;
+          const ctx = (res.error as unknown as { context?: Response })?.context;
+          if (ctx && typeof ctx.json === 'function') {
+            try {
+              const errBody = await ctx.json();
+              if (typeof errBody?.error === 'string') message = errBody.error;
+              else if (typeof errBody?.message === 'string') message = errBody.message;
+            } catch { /* response already consumed */ }
+          }
+          throw new Error(message);
         }
 
         const {
@@ -200,14 +213,15 @@ export function PaymentModal({
     };
 
     void fetchPaymentIntent();
-  }, [open, invoiceId, amount, shareToken, documentType, publishableKey]);
+  }, [open, invoiceId, bookingId, amount, shareToken, documentType, publishableKey]);
 
   const handleSuccess = () => {
     onPaymentComplete();
     onClose();
   };
 
-  const label = `${documentType === 'quote' ? 'Quote' : 'Invoice'} ${documentNumber}`;
+  const typeLabel = documentType === 'quote' ? 'Quote' : documentType === 'booking' ? 'Job' : 'Invoice';
+  const label = `${typeLabel} ${documentNumber}`;
   const stripePromise = resolvedPublishableKey ? getStripePromise(resolvedPublishableKey) : null;
 
   return (
@@ -221,6 +235,11 @@ export function PaymentModal({
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <p className="font-semibold">Could not load payment</p>
           <p className="mt-1 text-xs">{fetchError}</p>
+          {fetchError.toLowerCase().includes('not configured') ? (
+            <p className="mt-2 text-xs text-red-600">
+              The business owner needs to connect their Stripe account in Settings before online payments can be accepted.
+            </p>
+          ) : null}
         </div>
       ) : clientSecret && stripePromise ? (
         <Elements

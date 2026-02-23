@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,8 +7,10 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { Mail, Lock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { LogoMark } from '../../components/ui/Logo';
 
 const schema = z.object({
   email:    z.string().email('Enter a valid email'),
@@ -32,6 +34,7 @@ const easing = [0.25, 0.46, 0.45, 0.94] as const;
 
 export default function Login() {
   const navigate = useNavigate();
+  const { isAuthenticated, isLoading } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const {
@@ -69,6 +72,18 @@ export default function Login() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div
       className="flex min-h-screen"
@@ -102,15 +117,11 @@ export default function Login() {
         {/* Content above glass */}
         <div className="relative z-10">
           <Link to="/" className="inline-flex items-center gap-3">
-            <div
-              className="flex size-10 items-center justify-center rounded-xl font-black text-white text-sm shadow-lg animate-glow-pulse"
-              style={{
-                background: 'linear-gradient(135deg, #c084fc 0%, #818cf8 50%, #38bdf8 100%)',
-                boxShadow: '0 0 24px rgba(192,132,252,0.45)',
-              }}
-            >
-              H
-            </div>
+            <LogoMark
+              size={40}
+              className="animate-glow-pulse"
+              style={{ filter: 'drop-shadow(0 0 18px rgba(192,132,252,0.45))' }}
+            />
             <span className="text-xl font-black tracking-tight text-slate-900">Hasky</span>
           </Link>
         </div>
@@ -177,12 +188,7 @@ export default function Login() {
         >
           {/* Mobile logo */}
           <Link to="/" className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <div
-              className="flex size-9 items-center justify-center rounded-xl font-black text-white text-sm"
-              style={{ background: 'linear-gradient(135deg, #c084fc, #818cf8, #38bdf8)' }}
-            >
-              H
-            </div>
+            <LogoMark size={36} />
             <span className="text-lg font-black tracking-tight text-slate-900">Hasky</span>
           </Link>
 

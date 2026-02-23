@@ -36,7 +36,7 @@ interface CustomerFormProps {
 }
 
 export function CustomerForm({ defaultValues, onSubmit, loading }: CustomerFormProps) {
-  const [licenceFile, setLicenceFile] = useState<File | null>(null);
+  const [_licenceFile, setLicenceFile] = useState<File | null>(null);
   const [uploadingLicence, setUploadingLicence] = useState(false);
 
   const values = useMemo<CustomerFormValues>(

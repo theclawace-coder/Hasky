@@ -59,12 +59,15 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json() as {
       invoice_id?: string;
+      booking_id?: string;
+      amount?: number;
       share_token?: string;
       document_type?: DocumentType;
       currency?: string;
     };
 
     const invoiceId = body.invoice_id;
+    const bookingId = body.booking_id;
     const shareToken = String(body.share_token ?? '').trim();
     const documentType = body.document_type;
     const currency = body.currency ?? 'aud';
@@ -136,11 +139,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Authenticated internal invoice flow.
-    if (!invoiceId) {
-      return jsonResponse(400, { error: 'invoice_id is required' });
-    }
-
+    // Authenticated flows require an auth header.
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return jsonResponse(401, { error: 'Unauthorized' });
@@ -149,6 +148,64 @@ Deno.serve(async (req) => {
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
+
+    // ── Booking payment flow (deposit / upfront) ──
+    if (bookingId) {
+      const { data: booking, error: bookingError } = await userClient
+        .from('bookings')
+        .select('id, company_id, booking_number, payment_plan, deposit_amount, deposit_paid_amount, total_amount, paid_in_full_date, status')
+        .eq('id', bookingId)
+        .maybeSingle();
+
+      if (bookingError || !booking) {
+        return jsonResponse(404, { error: 'Booking not found' });
+      }
+
+      if (booking.paid_in_full_date) {
+        return jsonResponse(400, { error: 'This job is already fully paid' });
+      }
+
+      let chargeAmount: number;
+      if (typeof body.amount === 'number' && body.amount > 0) {
+        chargeAmount = body.amount;
+      } else if (booking.payment_plan === 'deposit') {
+        chargeAmount = Math.max(Number(booking.deposit_amount ?? 0) - Number(booking.deposit_paid_amount ?? 0), 0);
+      } else {
+        chargeAmount = Number(booking.total_amount ?? 0);
+      }
+
+      const amountCents = Math.round(chargeAmount * 100);
+      if (!Number.isFinite(amountCents) || amountCents <= 0) {
+        return jsonResponse(400, { error: 'No outstanding balance on this booking' });
+      }
+
+      const stripeConfig = await getStripeCredentialsForCompany(adminClient, booking.company_id);
+      const stripe = new Stripe(stripeConfig.secretKey, { apiVersion: '2024-06-20' });
+
+      const label = booking.booking_number ?? `Job #${booking.id.slice(0, 8)}`;
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amountCents,
+        currency,
+        metadata: {
+          document_type: 'booking',
+          company_id: booking.company_id,
+          booking_id: booking.id,
+          payment_plan: booking.payment_plan ?? '',
+        },
+        description: `Payment for ${label}`,
+        automatic_payment_methods: { enabled: true },
+      });
+
+      return jsonResponse(200, {
+        clientSecret: paymentIntent.client_secret,
+        publishableKey: stripeConfig.publishableKey,
+      });
+    }
+
+    // ── Authenticated internal invoice flow ──
+    if (!invoiceId) {
+      return jsonResponse(400, { error: 'invoice_id or booking_id is required' });
+    }
 
     const { data: invoice, error: invoiceError } = await userClient
       .from('invoices')
@@ -160,13 +217,15 @@ Deno.serve(async (req) => {
       return jsonResponse(404, { error: 'Invoice not found' });
     }
 
-    if (!['draft', 'sent', 'overdue', 'partially_paid'].includes(invoice.status)) {
+    if (['paid', 'cancelled'].includes(invoice.status)) {
       return jsonResponse(400, { error: 'Invoice is not payable' });
     }
 
-    // Charge only the outstanding balance so partial payers are never double-charged.
     const outstandingAmount = Math.max(Number(invoice.total ?? 0) - Number(invoice.paid_amount ?? 0), 0);
-    const amountCents = Math.round(outstandingAmount * 100);
+    const chargeAmount = (typeof body.amount === 'number' && body.amount > 0)
+      ? Math.min(body.amount, outstandingAmount)
+      : outstandingAmount;
+    const amountCents = Math.round(chargeAmount * 100);
     if (!Number.isFinite(amountCents) || amountCents <= 0) {
       return jsonResponse(400, { error: 'No outstanding balance on this invoice' });
     }
@@ -192,6 +251,7 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';
-    return jsonResponse(500, { error: message });
+    const isConfigError = message.toLowerCase().includes('not configured');
+    return jsonResponse(isConfigError ? 400 : 500, { error: message });
   }
 });

@@ -13,7 +13,7 @@ import { useAuthContext } from '../../contexts/auth-context';
 import { createOAuthUserSetup } from '../../services/api';
 
 // Steps: 0=Welcome, 1=Business, 2=Fleet, 3=Payments, 4=Team, 5=Complete
-const INDICATOR_STEPS = 4; // steps 1â€“4 shown in the progress dots
+const INDICATOR_STEPS = 4;
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(0);
@@ -64,14 +64,12 @@ export default function OnboardingPage() {
     <div className="relative min-h-screen overflow-hidden" style={{ background: 'var(--gradient-bg)', backgroundAttachment: 'fixed' }}>
       <OnboardingBackground />
 
-      {/* Step indicator â€” visible on steps 1â€“4 */}
       {step > 0 && step < 5 && (
         <div className="absolute left-1/2 top-8 z-20 -translate-x-1/2">
           <StepIndicator current={step - 1} total={INDICATOR_STEPS} />
         </div>
       )}
 
-      {/* Skip button â€” visible on steps 1â€“4 */}
       {step > 0 && step < 5 && (
         <button
           onClick={skip}
@@ -81,10 +79,6 @@ export default function OnboardingPage() {
         </button>
       )}
 
-      {/*
-        key={step} forces React to unmount + remount the step component,
-        which re-triggers the CSS entrance animation cleanly.
-      */}
       <div key={step} className={enterClass}>
         {step === 0 && (
           <WelcomeStep onNext={() => go(1)} onSkip={skip} />
@@ -126,4 +120,3 @@ export default function OnboardingPage() {
     </div>
   );
 }
-

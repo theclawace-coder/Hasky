@@ -28,4 +28,11 @@ dist-ssr
 test-results
 playwright-report
 e2e/artifacts/*
+e2e/artifacts-*/
 !e2e/artifacts/.gitkeep
+
+# Supabase temp
+supabase/.temp/
+
+# Embedded repos
+videoforsass/

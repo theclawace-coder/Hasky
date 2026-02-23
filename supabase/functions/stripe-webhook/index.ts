@@ -73,22 +73,86 @@ Deno.serve(async (req) => {
       const documentType = paymentIntent.metadata?.document_type;
       const invoiceId = paymentIntent.metadata?.invoice_id;
       const quoteId = paymentIntent.metadata?.quote_id;
+      const bookingId = paymentIntent.metadata?.booking_id;
       const paidDate = new Date().toISOString().slice(0, 10);
+      const stripeAmount = paymentIntent.amount / 100;
 
       if (documentType === 'invoice' && invoiceId) {
         const { data: inv } = await adminClient
           .from('invoices')
-          .select('total')
+          .select('total, paid_amount, booking_id')
           .eq('id', invoiceId)
           .maybeSingle();
+
+        if (!inv) {
+          return jsonResponse(404, { error: 'Invoice not found' });
+        }
+
+        const previousPaid = Number(inv.paid_amount ?? 0);
+        const total = Number(inv.total ?? 0);
+        const newPaidAmount = Math.min(previousPaid + stripeAmount, total);
+        const isFullyPaid = newPaidAmount >= total;
+
         const { error } = await adminClient
           .from('invoices')
           .update({
-            status: 'paid',
-            paid_date: paidDate,
-            paid_amount: Number(inv?.total ?? 0),
+            status: isFullyPaid ? 'paid' : 'partially_paid',
+            paid_date: isFullyPaid ? paidDate : null,
+            paid_amount: newPaidAmount,
           })
           .eq('id', invoiceId);
+
+        if (error) {
+          return jsonResponse(500, { error: error.message });
+        }
+
+        // Cascade to the linked booking when fully paid.
+        // The DB trigger trg_invoice_paid_cascade handles this automatically,
+        // but we also explicitly mark the booking here as a safety net for
+        // environments where the trigger may not yet be deployed.
+        if (isFullyPaid && inv.booking_id) {
+          await adminClient
+            .from('bookings')
+            .update({
+              paid_in_full_date: paidDate,
+            })
+            .eq('id', inv.booking_id)
+            .is('paid_in_full_date', null);
+        }
+      }
+
+      if (documentType === 'booking' && bookingId) {
+        const { data: bk } = await adminClient
+          .from('bookings')
+          .select('id, payment_plan, deposit_amount, deposit_paid_amount, total_amount, paid_in_full_date')
+          .eq('id', bookingId)
+          .maybeSingle();
+
+        if (!bk) {
+          return jsonResponse(404, { error: 'Booking not found' });
+        }
+
+        const prevPaid = Number(bk.deposit_paid_amount ?? 0);
+        const depositDue = Number(bk.deposit_amount ?? 0);
+        const totalAmount = Number(bk.total_amount ?? 0);
+        const newCumulativePaid = prevPaid + stripeAmount;
+
+        const updatePayload: Record<string, unknown> = {
+          deposit_paid_amount: newCumulativePaid,
+        };
+
+        if (newCumulativePaid >= depositDue && depositDue > 0) {
+          updatePayload.deposit_paid_date = paidDate;
+        }
+
+        if (totalAmount > 0 && newCumulativePaid >= totalAmount && !bk.paid_in_full_date) {
+          updatePayload.paid_in_full_date = paidDate;
+        }
+
+        const { error } = await adminClient
+          .from('bookings')
+          .update(updatePayload)
+          .eq('id', bookingId);
 
         if (error) {
           return jsonResponse(500, { error: error.message });

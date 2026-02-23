@@ -103,9 +103,12 @@ export default function NewBooking() {
         notes: wizardValues.notes || null,
       };
       // One quote line item per machine
+      const startLabel = wizardValues.startDate ? new Date(wizardValues.startDate + 'T00:00').toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+      const endLabel = (wizardValues.endDate || wizardValues.startDate) ? new Date((wizardValues.endDate || wizardValues.startDate) + 'T00:00').toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+      const dateSuffix = startLabel ? ` (${startLabel} to ${endLabel})` : '';
       const quoteItems: Array<Pick<QuoteItem, 'description' | 'quantity' | 'unit_price'>> = [
         ...wizardValues.machines.map((m) => ({
-          description: `${m.name} Hire`,
+          description: `Hire of ${m.name} – ${days} day${days !== 1 ? 's' : ''}${dateSuffix}`,
           quantity: days,
           unit_price: wizardValues.machineRates[m.id] ?? 0,
         })),
@@ -146,9 +149,9 @@ export default function NewBooking() {
         created_by: profile.id,
       };
 
-      await saveBookingMutation.mutateAsync({ payload, chargeItems, bookingMachines });
+      const booking = await saveBookingMutation.mutateAsync({ payload, chargeItems, bookingMachines });
       toast.success('Job created!');
-      navigate('/bookings');
+      navigate(`/bookings/${booking.id}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create job');
     }

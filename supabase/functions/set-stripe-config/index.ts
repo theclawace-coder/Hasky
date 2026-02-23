@@ -86,31 +86,34 @@ Deno.serve(async (req) => {
     }
 
     const nextSecret = secretKey || existing?.secret_key || null;
-    if (!nextSecret || !nextSecret.startsWith('sk_')) {
-      return jsonResponse(400, { error: 'Secret key must start with sk_ and cannot be empty' });
+    if (secretKey && !secretKey.startsWith('sk_')) {
+      return jsonResponse(400, { error: 'Secret key must start with sk_' });
     }
 
     const nextWebhook = webhookSecret || existing?.webhook_secret || null;
 
+    const row: Record<string, unknown> = {
+      company_id: profile.company_id,
+      publishable_key: publishableKey,
+      is_active: true,
+    };
+    if (nextSecret) row.secret_key = nextSecret;
+    if (nextWebhook) row.webhook_secret = nextWebhook;
+
     const { error: upsertError } = await adminClient
       .from('company_stripe_keys')
-      .upsert({
-        company_id: profile.company_id,
-        publishable_key: publishableKey,
-        secret_key: nextSecret,
-        webhook_secret: nextWebhook,
-        is_active: true,
-      }, { onConflict: 'company_id' });
+      .upsert(row, { onConflict: 'company_id' });
 
     if (upsertError) {
       return jsonResponse(500, { error: upsertError.message });
     }
 
+    const hasSecret = Boolean(nextSecret);
     return jsonResponse(200, {
       publishable_key: publishableKey,
-      has_secret_key: true,
+      has_secret_key: hasSecret,
       has_webhook_secret: Boolean(nextWebhook),
-      configured: true,
+      configured: Boolean(publishableKey && hasSecret),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';

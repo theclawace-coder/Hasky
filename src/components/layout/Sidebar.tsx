@@ -1,4 +1,6 @@
+import { useEffect, useCallback } from 'react';
 import { Link, NavLink } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   LayoutDashboard,
   Truck,
@@ -21,6 +23,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useUiStore } from '../../store/uiStore';
 import { cn } from '../../lib/utils';
+import { LogoMark } from '../ui/Logo';
 
 const mainNav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'text-blue-400',   activeBg: 'bg-blue-500/20',   activeText: 'text-blue-200',   glow: 'rgba(59,130,246,0.35)' },
@@ -48,17 +51,35 @@ export function Sidebar({ onHelpClick }: SidebarProps) {
   const { profile, company, isPlatformAdmin, signOut } = useAuth();
   const { sidebarCollapsed, toggleSidebarCollapsed, sidebarOpen, setSidebarOpen } = useUiStore();
 
-  const initials = (profile?.full_name ?? 'U')
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  const rawName = (profile?.full_name ?? '').trim();
+  const initials = rawName
+    ? rawName.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
+    : 'U';
+
+  const handleSignOut = useCallback(async () => {
+    try {
+      await signOut();
+    } catch {
+      toast.error('Sign out failed — please try again');
+    }
+  }, [signOut]);
+
+  // Close sidebar on Escape key (mobile)
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSidebarOpen(false);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [sidebarOpen, setSidebarOpen]);
 
   return (
     <>
       {/* Mobile overlay */}
       <div
+        role="presentation"
+        aria-hidden="true"
         className={cn(
           'fixed inset-0 z-30 bg-slate-950/60 backdrop-blur-sm lg:hidden transition-opacity duration-300',
           sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
@@ -74,6 +95,7 @@ export function Sidebar({ onHelpClick }: SidebarProps) {
           'glass-dark border-r border-white/[0.06]',
           sidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-64',
           sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64',
+          !sidebarOpen && 'max-lg:hidden',
         )}
       >
         {/* Logo */}
@@ -83,16 +105,12 @@ export function Sidebar({ onHelpClick }: SidebarProps) {
             className="flex items-center gap-3 overflow-hidden"
             onClick={() => setSidebarOpen(false)}
           >
-            {/* Brand logo — gradient orb */}
-            <div
-              className="flex size-9 shrink-0 items-center justify-center rounded-xl font-black text-white text-sm shadow-lg animate-glow-pulse"
-              style={{
-                background: 'linear-gradient(135deg, #c084fc 0%, #818cf8 50%, #38bdf8 100%)',
-                boxShadow: '0 0 20px rgba(192,132,252,0.4), 0 4px 16px rgba(0,0,0,0.3)',
-              }}
-            >
-              H
-            </div>
+            {/* Brand logo */}
+            <LogoMark
+              size={36}
+              className="shrink-0 animate-glow-pulse"
+              style={{ filter: 'drop-shadow(0 0 14px rgba(192,132,252,0.45)) drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }}
+            />
             {!sidebarCollapsed ? (
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold tracking-tight text-white">Hasky</p>
@@ -124,6 +142,7 @@ export function Sidebar({ onHelpClick }: SidebarProps) {
                   key={item.to}
                   to={item.to}
                   onClick={() => setSidebarOpen(false)}
+                  aria-label={item.label}
                   className={({ isActive }) =>
                     cn(
                       'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200',
@@ -142,6 +161,7 @@ export function Sidebar({ onHelpClick }: SidebarProps) {
                   {({ isActive }) => (
                     <>
                       <Icon
+                        aria-hidden="true"
                         className={cn(
                           'size-5 shrink-0 transition-colors',
                           isActive ? item.color : 'text-white/30 group-hover:text-white/60',
@@ -150,7 +170,7 @@ export function Sidebar({ onHelpClick }: SidebarProps) {
                       {!sidebarCollapsed ? (
                         <>
                           <span className="flex-1">{item.label}</span>
-                          {isActive ? <ChevronRight className="size-3.5 opacity-50" /> : null}
+                          {isActive ? <ChevronRight aria-hidden="true" className="size-3.5 opacity-50" /> : null}
                         </>
                       ) : null}
                     </>
@@ -233,21 +253,25 @@ export function Sidebar({ onHelpClick }: SidebarProps) {
             ) : null}
             {!sidebarCollapsed ? (
               <button
-                onClick={() => void signOut()}
+                data-testid="logout-button"
+                onClick={() => void handleSignOut()}
                 className="rounded-lg p-1.5 text-white/30 transition-colors hover:bg-white/[0.06] hover:text-red-400"
                 title="Sign out"
+                aria-label="Sign out"
               >
-                <LogOut className="size-4" />
+                <LogOut aria-hidden="true" className="size-4" />
               </button>
             ) : null}
           </div>
           {sidebarCollapsed ? (
             <button
-              onClick={() => void signOut()}
+              data-testid="logout-button"
+              onClick={() => void handleSignOut()}
               className="mt-1 flex w-full items-center justify-center rounded-xl p-2 text-white/30 transition-colors hover:bg-white/[0.06] hover:text-red-400"
               title="Sign out"
+              aria-label="Sign out"
             >
-              <LogOut className="size-4" />
+              <LogOut aria-hidden="true" className="size-4" />
             </button>
           ) : null}
         </div>

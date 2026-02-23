@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -72,7 +72,7 @@ export default function CustomersList() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-2xl font-semibold text-slate-900">Customers</h2>
-        <Button onClick={() => setOpen(true)}>
+        <Button data-testid="add-customer-button" onClick={() => setOpen(true)}>
           <Plus className="size-4" />
           Add Customer
         </Button>

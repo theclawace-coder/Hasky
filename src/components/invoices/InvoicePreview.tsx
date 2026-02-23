@@ -1,14 +1,22 @@
 import { formatCurrency, formatDate } from '../../lib/utils';
 import type { Company, Invoice, InvoiceItem, Customer } from '../../types';
 
+export interface BankDetails {
+  bank_name?: string | null;
+  bank_bsb?: string | null;
+  bank_account_number?: string | null;
+  bank_account_name?: string | null;
+}
+
 interface InvoicePreviewProps {
   company: Company | null;
   customer: Customer | null;
   invoice: Invoice;
   items: InvoiceItem[];
+  bankDetails?: BankDetails | null;
 }
 
-export function InvoicePreview({ company, customer, invoice, items }: InvoicePreviewProps) {
+export function InvoicePreview({ company, customer, invoice, items, bankDetails }: InvoicePreviewProps) {
   const outstanding = Math.max(invoice.total - Number(invoice.paid_amount ?? 0), 0);
   const isPaid = invoice.status === 'paid';
 
@@ -101,6 +109,40 @@ export function InvoicePreview({ company, customer, invoice, items }: InvoicePre
           </>
         ) : null}
       </div>
+
+      {bankDetails?.bank_account_number && invoice.status !== 'paid' ? (
+        <div className="mt-6 rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-blue-800 mb-2">Payment Details</p>
+          <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2 text-slate-700">
+            {bankDetails.bank_name ? (
+              <div className="flex gap-2">
+                <span className="font-medium text-slate-500 min-w-[110px]">Bank:</span>
+                <span>{bankDetails.bank_name}</span>
+              </div>
+            ) : null}
+            {bankDetails.bank_account_name ? (
+              <div className="flex gap-2">
+                <span className="font-medium text-slate-500 min-w-[110px]">Account Name:</span>
+                <span>{bankDetails.bank_account_name}</span>
+              </div>
+            ) : null}
+            {bankDetails.bank_bsb ? (
+              <div className="flex gap-2">
+                <span className="font-medium text-slate-500 min-w-[110px]">BSB:</span>
+                <span>{bankDetails.bank_bsb}</span>
+              </div>
+            ) : null}
+            <div className="flex gap-2">
+              <span className="font-medium text-slate-500 min-w-[110px]">Account No:</span>
+              <span>{bankDetails.bank_account_number}</span>
+            </div>
+            <div className="flex gap-2 sm:col-span-2">
+              <span className="font-medium text-slate-500 min-w-[110px]">Reference:</span>
+              <span className="font-semibold">{invoice.invoice_number}</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {invoice.notes ? (
         <div className="mt-6 rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm text-slate-600">

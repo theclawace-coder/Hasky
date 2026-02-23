@@ -20,7 +20,7 @@ type AuditFixtures = {
 
 const test = base.extend<AuditFixtures>({
   audit: async ({ baseURL }, use, testInfo) => {
-    const resolvedBaseURL = baseURL ?? process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
+    const resolvedBaseURL = baseURL ?? process.env.E2E_BASE_URL ?? "http://127.0.0.1:5173";
     const metadata = (testInfo.project.metadata ?? {}) as Record<string, unknown>;
     const roleValue = String(metadata.role ?? "anonymous").toLowerCase();
     const role = roleValue === "basic" || roleValue === "admin" || roleValue === "anonymous" ? roleValue : "unknown";

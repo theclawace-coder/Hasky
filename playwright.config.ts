@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
+const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:5173";
 const artifactsDir = process.env.E2E_ARTIFACTS_DIR ?? "e2e/artifacts";
 const roles = (process.env.E2E_ROLES ?? "anonymous")
   .split(",")

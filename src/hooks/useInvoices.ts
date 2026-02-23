@@ -34,10 +34,12 @@ export function useInvoices(status?: string) {
   });
 
   const recordPaymentMutation = useMutation({
-    mutationFn: ({ id, amount }: { id: string; amount: number }) => recordInvoicePayment(id, amount),
+    mutationFn: ({ id, amount, method, notes }: { id: string; amount: number; method?: string; notes?: string }) =>
+      recordInvoicePayment(id, amount, method, notes),
     onSuccess: (_, vars) => {
       void queryClient.invalidateQueries({ queryKey: ['invoices'] });
       void queryClient.invalidateQueries({ queryKey: ['invoice', vars.id] });
+      void queryClient.invalidateQueries({ queryKey: ['invoice_payments', vars.id] });
     },
   });
 

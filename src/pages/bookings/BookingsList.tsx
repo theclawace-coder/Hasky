@@ -27,6 +27,12 @@ import type { BookingMachine, Invoice } from '../../types';
 
 const tabs = ['', 'quote', 'confirmed', 'completed', 'cancelled'];
 
+function getAllMachineNames(b: { machines?: { name?: string } | null; booking_machines?: BookingMachine[] }) {
+  const bms = (b.booking_machines ?? []).slice().sort((a, c) => a.machine_order - c.machine_order);
+  if (bms.length > 0) return bms.map((bm) => bm.machines?.name ?? '').filter(Boolean);
+  return b.machines?.name ? [b.machines.name] : [];
+}
+
 export default function BookingsList() {
   const navigate = useNavigate();
   const [calendarView, setCalendarView] = useState(true);
@@ -38,19 +44,12 @@ export default function BookingsList() {
   const { bookingsQuery } = useBookings(status ? { status } : undefined);
   const { machinesQuery } = useMachines();
 
-  const bookings = bookingsQuery.data ?? [];
+  const bookings = useMemo(() => bookingsQuery.data ?? [], [bookingsQuery.data]);
   const machines = useMemo(
     () => (machinesQuery.data ?? []).sort((a, b) => a.name.localeCompare(b.name)),
     [machinesQuery.data],
   );
 
-  const getAllMachineNames = (b: (typeof bookings)[number]) => {
-    const bms = ((b as typeof b & { booking_machines?: BookingMachine[] }).booking_machines ?? [])
-      .slice()
-      .sort((a, c) => a.machine_order - c.machine_order);
-    if (bms.length > 0) return bms.map((bm) => bm.machines?.name ?? '').filter(Boolean);
-    return b.machines?.name ? [b.machines.name] : [];
-  };
 
   const filteredBookings = useMemo(() => {
     if (!search.trim()) return bookings;
@@ -137,12 +136,12 @@ export default function BookingsList() {
                 Monthly
               </Button>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" variant="secondary" onClick={() => shiftCalendar(-1)}>
                 <ChevronLeft className="size-4" />
                 Previous
               </Button>
-              <p className="min-w-44 text-center text-sm font-medium text-slate-700">
+              <p className="w-full text-center text-sm font-medium text-slate-700 sm:min-w-44 sm:w-auto">
                 {calendarLabel}
               </p>
               <Button size="sm" variant="secondary" onClick={() => shiftCalendar(1)}>
@@ -183,8 +182,65 @@ export default function BookingsList() {
             />
           </div>
 
+          {/* Mobile cards prevent table-driven page overflow on narrow viewports */}
+          <div className="space-y-3 md:hidden">
+            {filteredBookings.length === 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-400 shadow-sm">
+                {search ? `No jobs matching "${search}"` : 'No jobs found'}
+              </div>
+            ) : (
+              filteredBookings.map((booking) => {
+                const linkedInvoices = ((booking as typeof booking & { invoices?: Pick<Invoice, 'id' | 'status'>[] }).invoices) ?? [];
+                const invoicesPaid = linkedInvoices.length > 0 && linkedInvoices.every((inv) => inv.status === 'paid');
+                const isPaid = Boolean(booking.paid_in_full_date) || invoicesPaid;
+                return (
+                  <button
+                    key={booking.id}
+                    type="button"
+                    onClick={() => navigate(`/bookings/${booking.id}`)}
+                    className={`w-full rounded-xl border p-3 text-left shadow-sm transition ${isPaid ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-violet-700">
+                          {booking.booking_number ?? '—'}
+                        </p>
+                        <p className="mt-0.5 break-words text-xs text-slate-600">
+                          {getAllMachineNames(booking).join(', ') || '—'}
+                        </p>
+                      </div>
+                      <StatusBadge
+                        status={isPaid ? 'paid' : booking.status}
+                        label={isPaid ? 'Paid' : BOOKING_STATUS_LABELS[booking.status]}
+                      />
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-slate-600">
+                      <p>
+                        <span className="text-slate-400">Customer:</span>{' '}
+                        <span className="break-words">{booking.customers?.name ?? '—'}</span>
+                      </p>
+                      <p>
+                        <span className="text-slate-400">Rate:</span> {formatCurrency(booking.rate_amount)}
+                      </p>
+                      <p>
+                        <span className="text-slate-400">Start:</span> {formatDate(booking.start_date)}
+                      </p>
+                      <p>
+                        <span className="text-slate-400">End:</span> {formatDate(booking.end_date)}
+                      </p>
+                      <p className="col-span-2 font-medium text-slate-700">
+                        <span className="text-slate-400">Total:</span>{' '}
+                        {formatCurrency(Number(booking.total_amount ?? booking.rate_amount))}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
           <TableContainer>
-            <Table>
+            <Table className="hidden md:table">
               <thead className="bg-slate-50">
                 <tr>
                   <th className="p-3">Job #</th>

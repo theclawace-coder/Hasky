@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { AlertTriangle, CheckCircle2, Pencil, Plus, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CreditCard, DollarSign, Pencil, Plus, XCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useBooking, useBookings } from '../../hooks/useBookings';
 import { useCustomers } from '../../hooks/useCustomers';
 import { useMachines } from '../../hooks/useMachines';
 import { useExpenses } from '../../hooks/useAccounting';
-import { getInvoicesByBookingId } from '../../services/api';
+import { getInvoicesByBookingId, getStripeConfigStatus } from '../../services/api';
 import { BookingStatusBar } from '../../components/bookings/BookingStatusBar';
 import { BookingForm, type BookingFormValues } from '../../components/bookings/BookingForm';
+import { PaymentModal } from '../../components/payments/PaymentModal';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -48,6 +49,10 @@ export default function BookingDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [logCostOpen, setLogCostOpen] = useState(false);
+  const [stripePaymentOpen, setStripePaymentOpen] = useState(false);
+  const [stripeAmount, setStripeAmount] = useState<number | null>(null);
+  const [partialPaymentOpen, setPartialPaymentOpen] = useState(false);
+  const [partialPaymentAmount, setPartialPaymentAmount] = useState('');
   const [costForm, setCostForm] = useState({ category: 'Fuel' as ExpenseCategory, description: '', amount: '' });
 
   const { expensesQuery, upsertMutation: logCostMutation } = useExpenses({ bookingId: id ?? '' });
@@ -57,6 +62,13 @@ export default function BookingDetail() {
     queryFn: () => getInvoicesByBookingId(id!),
     enabled: Boolean(id),
   });
+
+  const stripeConfigQuery = useQuery({
+    queryKey: ['stripe_config'],
+    queryFn: getStripeConfigStatus,
+    staleTime: 60_000,
+  });
+  const stripeConfigured = stripeConfigQuery.data?.configured ?? false;
 
   const booking = bookingQuery.data;
   const chargeItems = useMemo(
@@ -146,6 +158,30 @@ export default function BookingDetail() {
       void bookingQuery.refetch();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to mark payment');
+    }
+  };
+
+  const handlePartialPayment = async () => {
+    if (!id || !booking) return;
+    const increment = parseFloat(partialPaymentAmount);
+    if (isNaN(increment) || increment <= 0) {
+      toast.error('Enter a valid payment amount');
+      return;
+    }
+    try {
+      const cumulativeAmount = depositPaid + increment;
+      await markDepositPaidMutation.mutateAsync({ bookingId: id, amount: cumulativeAmount });
+      const remaining = Math.max(totalAmount - cumulativeAmount, 0);
+      if (remaining <= 0) {
+        toast.success('Job fully paid');
+      } else {
+        toast.success(`${formatCurrency(increment)} recorded — ${formatCurrency(remaining)} still outstanding`);
+      }
+      setPartialPaymentOpen(false);
+      setPartialPaymentAmount('');
+      void bookingQuery.refetch();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to record payment');
     }
   };
 
@@ -289,35 +325,42 @@ export default function BookingDetail() {
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-amber-800">
                     {booking.payment_plan === 'deposit'
-                      ? `Record the ${formatCurrency(depositOutstanding)} deposit before confirming`
-                      : `Record full payment of ${formatCurrency(totalAmount)} before confirming`}
+                      ? `Collect the ${formatCurrency(depositOutstanding)} deposit before confirming`
+                      : `Collect full payment of ${formatCurrency(totalAmount)} before confirming`}
                   </p>
                   <p className="mt-0.5 text-xs text-amber-600">
                     Once payment is recorded, you can confirm the job and put the machine on hire.
                   </p>
-                  <div className="mt-3">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     {booking.payment_plan === 'deposit' ? (
                       <Button
                         onClick={() => void handleMarkDepositPaid()}
                         loading={markDepositPaidMutation.isPending}
                       >
-                        <CheckCircle2 className="size-4" />
-                        Mark {formatCurrency(depositOutstanding)} Deposit Received
+                        <DollarSign className="size-4" />
+                        Mark {formatCurrency(depositOutstanding)} Cash Received
                       </Button>
                     ) : (
                       <Button
                         onClick={() => void handleMarkFullPaid()}
                         loading={markPaidInFullMutation.isPending}
                       >
-                        <CheckCircle2 className="size-4" />
-                        Mark {formatCurrency(totalAmount)} Payment Received
+                        <DollarSign className="size-4" />
+                        Mark {formatCurrency(totalAmount)} Cash Received
                       </Button>
                     )}
+                    {stripeConfigured ? (
+                      <Button variant="secondary" onClick={() => setStripePaymentOpen(true)}>
+                        <CreditCard className="size-4" />
+                        Collect via Stripe — {formatCurrency(booking.payment_plan === 'deposit' ? depositOutstanding : totalAmount)}
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               </div>
             </div>
           ) : null}
+
 
           <div className="mt-4 flex flex-wrap gap-2">
             {booking.status === 'quote' ? (
@@ -346,15 +389,15 @@ export default function BookingDetail() {
             ) : null}
 
             {(booking.status === 'confirmed' || booking.status === 'completed') ? (
-              fullPaid ? (
-                <div className="relative">
-                  <Button variant="secondary" disabled className="opacity-50">
-                    Generate Invoice
-                  </Button>
-                  <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
-                    PAID
-                  </span>
-                </div>
+              bookingInvoices.length > 0 ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate(`/invoices/${bookingInvoices[0].id}`)}
+                >
+                  {fullPaid
+                    ? <><CheckCircle2 className="size-4 text-emerald-500" /> View Paid Invoice</>
+                    : 'View Invoice'}
+                </Button>
               ) : (
                 <Button
                   variant="secondary"
@@ -500,6 +543,112 @@ export default function BookingDetail() {
             </Button>
             <Button variant="secondary" onClick={() => setCompleteModalOpen(false)}>
               Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Stripe Payment modal ── */}
+      <PaymentModal
+        open={stripePaymentOpen}
+        onClose={() => { setStripePaymentOpen(false); setStripeAmount(null); }}
+        bookingId={booking.id}
+        documentType="booking"
+        documentNumber={booking.booking_number ?? `#${booking.id.slice(0, 8)}`}
+        amount={
+          stripeAmount
+            ?? (booking.payment_plan === 'deposit' ? depositOutstanding : totalAmount)
+        }
+        onPaymentComplete={async () => {
+          try {
+            if (booking.payment_plan === 'deposit') {
+              const paidViaStripe = stripeAmount ?? depositOutstanding;
+              const cumulative = depositPaid + paidViaStripe;
+              await markDepositPaidMutation.mutateAsync({ bookingId: booking.id, amount: cumulative });
+            } else {
+              await markPaidInFullMutation.mutateAsync({ bookingId: booking.id });
+            }
+          } catch {
+            // Stripe webhook will reconcile as a backup
+          }
+          void bookingQuery.refetch();
+          void bookingInvoicesQuery.refetch();
+        }}
+      />
+
+
+      {/* ── Partial Payment modal ── */}
+      <Modal
+        open={partialPaymentOpen}
+        onClose={() => setPartialPaymentOpen(false)}
+        title="Partial Payment"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+            <div className="flex justify-between text-slate-600">
+              <span>Job total</span>
+              <span>{formatCurrency(totalAmount)}</span>
+            </div>
+            {depositPaid > 0 && (
+              <div className="flex justify-between text-emerald-600">
+                <span>Already received</span>
+                <span>- {formatCurrency(depositPaid)}</span>
+              </div>
+            )}
+            <div className="mt-2 flex justify-between border-t border-slate-200 pt-2 font-semibold text-slate-900">
+              <span>Outstanding</span>
+              <span>{formatCurrency(Math.max(totalAmount - depositPaid, 0))}</span>
+            </div>
+          </div>
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="text-sm font-medium text-slate-700">Amount received ($)</label>
+              {depositOutstanding > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPartialPaymentAmount(Math.max(totalAmount - depositPaid, 0).toFixed(2))}
+                  className="text-xs font-semibold text-violet-600 hover:text-violet-800 hover:underline"
+                >
+                  Pay full ({formatCurrency(Math.max(totalAmount - depositPaid, 0))})
+                </button>
+              )}
+            </div>
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={partialPaymentAmount}
+              onChange={(e) => setPartialPaymentAmount(e.target.value)}
+              placeholder="0.00"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
+              autoFocus
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setPartialPaymentOpen(false)}>Cancel</Button>
+            {stripeConfigured ? (
+              <Button
+                variant="secondary"
+                disabled={!partialPaymentAmount || isNaN(parseFloat(partialPaymentAmount)) || parseFloat(partialPaymentAmount) <= 0}
+                onClick={() => {
+                  const amt = parseFloat(partialPaymentAmount);
+                  if (isNaN(amt) || amt <= 0) return;
+                  setStripeAmount(amt);
+                  setPartialPaymentOpen(false);
+                  setStripePaymentOpen(true);
+                }}
+              >
+                <CreditCard className="size-4" />
+                Collect via Stripe
+              </Button>
+            ) : null}
+            <Button
+              variant="success"
+              onClick={() => void handlePartialPayment()}
+              loading={markDepositPaidMutation.isPending}
+            >
+              <DollarSign className="size-4" />
+              Record Cash Payment
             </Button>
           </div>
         </div>

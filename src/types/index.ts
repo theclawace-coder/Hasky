@@ -177,6 +177,17 @@ export interface BookingChargeTemplate {
   unit_price: number;
 }
 
+export interface InvoicePayment {
+  id: UUID;
+  invoice_id: UUID;
+  company_id: UUID;
+  amount: number;
+  payment_method: string;
+  payment_date: string;
+  notes: string | null;
+  created_at: string;
+}
+
 export interface Invoice {
   id: UUID;
   company_id: UUID;
@@ -201,6 +212,7 @@ export interface Invoice {
   updated_at: string;
   customers?: Customer;
   bookings?: Booking | null;
+  invoice_payments?: InvoicePayment[];
 }
 
 export interface InvoiceItem {
@@ -291,6 +303,7 @@ export interface CompanySettings {
   company_id: UUID;
   allow_cross_hire: boolean;
   payment_terms_days: number;
+  bank_name: string | null;
   bank_bsb: string | null;
   bank_account_number: string | null;
   bank_account_name: string | null;
@@ -372,6 +385,12 @@ export interface PublicDocumentPayload {
   customer: Customer | null;
   document: Invoice | Quote;
   items: InvoiceItem[] | QuoteItem[];
+  bank_details?: {
+    bank_name?: string | null;
+    bank_bsb?: string | null;
+    bank_account_number?: string | null;
+    bank_account_name?: string | null;
+  } | null;
 }
 
 export interface StripeConfigStatus {

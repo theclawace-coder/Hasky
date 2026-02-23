@@ -71,12 +71,33 @@ const isMissingRelation = (error: { message: string; code?: string } | null, rel
 const isMissingSchemaCacheFunction = (error: { message: string; code?: string } | null, functionName: string) =>
   Boolean(error?.message.includes(`Could not find the function public.${functionName}`));
 
-const isEdgeFunctionRequestFailure = (error: { message: string; code?: string } | null) => {
+const isEdgeFunctionUnreachable = (error: { message: string; code?: string } | null) => {
   const message = String(error?.message ?? '').toLowerCase();
   return message.includes('failed to send a request to the edge function')
     || message.includes('failed to fetch')
     || message.includes('fetch failed')
     || message.includes('function not found');
+};
+
+const isEdgeFunctionNon2xx = (error: { message: string; code?: string } | null) =>
+  String(error?.message ?? '').toLowerCase().includes('non-2xx status code');
+
+const resolveEdgeFunctionError = async (error: unknown): Promise<string> => {
+  const ctx = (error as { context?: Response })?.context;
+  if (ctx && typeof ctx.json === 'function') {
+    try {
+      const body = await ctx.json();
+      if (typeof body?.error === 'string') return body.error;
+      if (typeof body?.message === 'string') return body.message;
+    } catch { /* response already consumed or not JSON */ }
+  }
+  if (ctx && typeof ctx.text === 'function') {
+    try {
+      const text = await ctx.text();
+      if (text) return text;
+    } catch { /* ignore */ }
+  }
+  return (error as { message?: string })?.message ?? 'Edge function error';
 };
 
 const createShareToken = () =>
@@ -378,7 +399,7 @@ export async function getBookings(filters?: {
         ? '*,machines(*,machine_categories(*)),customers(*),booking_charge_items(*),booking_machines(*,machines(*)),invoices(id,status)'
         : '*,machines(*,machine_categories(*)),customers(*),booking_machines(*,machines(*)),invoices(id,status)',
     )
-    .order('start_date', { ascending: true }) as any;
+    .order('start_date', { ascending: true }) as ReturnType<typeof supabase.from>;
 
   if (filters?.status) {
     query = query.eq('status', filters.status);
@@ -550,7 +571,57 @@ export async function updateBookingAndMachineStatus(bookingId: string, bookingSt
 export async function createInvoiceFromBooking(bookingId: string) {
   const { data, error } = await supabase.rpc('create_invoice_from_booking', { p_booking_id: bookingId });
   throwIfError(error);
-  return data as string;
+  const invoiceId = data as string;
+
+  // Safety net for environments where an older DB function definition is still active:
+  // ensure any booking-stage payment (deposit/upfront) is reflected on the invoice.
+  try {
+    const [{ data: booking }, { data: invoice }] = await Promise.all([
+      supabase
+        .from('bookings')
+        .select('payment_plan, deposit_paid_amount, paid_in_full_date')
+        .eq('id', bookingId)
+        .maybeSingle(),
+      supabase
+        .from('invoices')
+        .select('paid_amount, total')
+        .eq('id', invoiceId)
+        .maybeSingle(),
+    ]);
+
+    if (booking && invoice) {
+      const invoiceTotal = Number((invoice as { total?: number }).total ?? 0);
+      const invoicePaid = Number((invoice as { paid_amount?: number }).paid_amount ?? 0);
+      const bookingRow = booking as {
+        payment_plan?: string | null;
+        deposit_paid_amount?: number | null;
+        paid_in_full_date?: string | null;
+      };
+
+      const expectedPriorPaid =
+        bookingRow.payment_plan === 'upfront' && bookingRow.paid_in_full_date
+          ? invoiceTotal
+          : bookingRow.payment_plan === 'deposit'
+            ? Math.min(Number(bookingRow.deposit_paid_amount ?? 0), invoiceTotal)
+            : 0;
+
+      const missingCredit = Number((expectedPriorPaid - invoicePaid).toFixed(2));
+      if (missingCredit > 0.009) {
+        await recordInvoicePayment(
+          invoiceId,
+          missingCredit,
+          'cash',
+          bookingRow.payment_plan === 'upfront'
+            ? 'Paid in full at booking (upfront)'
+            : 'Deposit received at booking',
+        );
+      }
+    }
+  } catch {
+    // Non-blocking: invoice creation already succeeded.
+  }
+
+  return invoiceId;
 }
 
 export async function markBookingDepositPaid(bookingId: string, amount?: number) {
@@ -640,7 +711,7 @@ export async function getMachineLocationsByDate(dateOn: string) {
 
   // Fetch booking_machines for bookings that are active on this date.
   const bookingIds = bookings.map((b) => b.id);
-  let bmByBookingId = new Map<string, string[]>();
+  const bmByBookingId = new Map<string, string[]>();
   if (bookingIds.length > 0) {
     const { data: bmRows } = await supabase
       .from('booking_machines')
@@ -778,10 +849,17 @@ export async function updateInvoiceStatus(id: string, status: string) {
   return data as Invoice;
 }
 
-export async function recordInvoicePayment(invoiceId: string, amount: number) {
+export async function recordInvoicePayment(
+  invoiceId: string,
+  amount: number,
+  method?: string,
+  notes?: string,
+) {
   const { data, error } = await supabase.rpc('record_invoice_payment', {
     p_invoice_id: invoiceId,
     p_amount: amount,
+    p_method: method ?? 'cash',
+    p_notes: notes ?? null,
   });
   if (!error) {
     return data as Invoice;
@@ -822,6 +900,19 @@ export async function recordInvoicePayment(invoiceId: string, amount: number) {
     .select('*')
     .single();
   throwIfError(updateError);
+
+  // Also insert into invoice_payments so history is tracked even in fallback mode.
+  await supabase
+    .from('invoice_payments')
+    .insert({
+      invoice_id: invoiceId,
+      company_id: (current as { company_id: string }).company_id,
+      amount,
+      payment_method: method ?? 'cash',
+      notes: notes ?? null,
+    });
+  // Intentionally ignore insert error — invoice update already succeeded.
+
   return updated as Invoice;
 }
 
@@ -956,7 +1047,7 @@ export async function createDocumentShareLink(
     },
   });
   if (error) {
-    if (isEdgeFunctionRequestFailure(error)) {
+    if (isEdgeFunctionUnreachable(error) || isEdgeFunctionNon2xx(error)) {
       return buildDocumentShareResponseFallback(documentType, documentId, null, false);
     }
     throwIfError(error);
@@ -978,8 +1069,12 @@ export async function sendDocumentEmail(
     },
   });
   if (error) {
-    if (isEdgeFunctionRequestFailure(error)) {
+    if (isEdgeFunctionUnreachable(error)) {
       return buildDocumentShareResponseFallback(documentType, documentId, recipientEmail ?? null, true);
+    }
+    if (isEdgeFunctionNon2xx(error)) {
+      const msg = await resolveEdgeFunctionError(error);
+      throw new Error(msg);
     }
     throwIfError(error);
   }
@@ -991,9 +1086,37 @@ export async function sendPaymentReminder(invoiceId: string): Promise<{ invoice_
     body: { invoice_id: invoiceId },
   });
   if (error) {
+    if (isEdgeFunctionNon2xx(error)) {
+      const msg = await resolveEdgeFunctionError(error);
+      throw new Error(msg);
+    }
     throwIfError(error);
   }
   return data as { invoice_id: string; to_email: string; email_sent: boolean };
+}
+
+export async function getInvoicePayments(invoiceId: string) {
+  const { data, error } = await supabase
+    .from('invoice_payments')
+    .select('*')
+    .eq('invoice_id', invoiceId)
+    .order('created_at', { ascending: true });
+  throwIfError(error);
+  return (data ?? []) as import('../types').InvoicePayment[];
+}
+
+export async function sendPaymentReceipt(paymentId: string): Promise<{ payment_id: string; to_email: string; email_sent: boolean }> {
+  const { data, error } = await supabase.functions.invoke('send-payment-receipt', {
+    body: { payment_id: paymentId },
+  });
+  if (error) {
+    if (isEdgeFunctionNon2xx(error)) {
+      const msg = await resolveEdgeFunctionError(error);
+      throw new Error(msg);
+    }
+    throwIfError(error);
+  }
+  return data as { payment_id: string; to_email: string; email_sent: boolean };
 }
 
 export async function getPublicDocument(documentType: DocumentType, token: string) {
@@ -1004,7 +1127,7 @@ export async function getPublicDocument(documentType: DocumentType, token: strin
     },
   });
   if (error) {
-    if (isEdgeFunctionRequestFailure(error)) {
+    if (isEdgeFunctionUnreachable(error) || isEdgeFunctionNon2xx(error)) {
       return getPublicDocumentFallback(documentType, token);
     }
     throwIfError(error);
@@ -1027,10 +1150,11 @@ async function getPublicDocumentFallback(documentType: DocumentType, token: stri
     throw new Error('Document not found');
   }
 
-  const [companyRes, customerRes, itemsRes] = await Promise.all([
+  const [companyRes, customerRes, itemsRes, settingsRes] = await Promise.all([
     supabase.from('companies').select('*').eq('id', doc.company_id).maybeSingle(),
     supabase.from('customers').select('*').eq('id', doc.customer_id).maybeSingle(),
     supabase.from(itemsTable).select('*').eq(itemFK, doc.id).order('created_at', { ascending: true }),
+    supabase.from('company_settings').select('bank_name, bank_bsb, bank_account_number, bank_account_name').eq('company_id', doc.company_id).maybeSingle(),
   ]);
 
   const shareUrl = `${getAppBaseUrl()}/public/${documentType}/${token}`;
@@ -1045,12 +1169,19 @@ async function getPublicDocumentFallback(documentType: DocumentType, token: stri
     customer: (customerRes.data as Customer) ?? null,
     document: doc as Invoice | Quote,
     items: (itemsRes.data ?? []) as InvoiceItem[] | QuoteItem[],
+    bank_details: settingsRes?.data ?? null,
   };
 }
 
 export async function getStripeConfigStatus() {
   const { data, error } = await supabase.functions.invoke('get-stripe-config');
-  throwIfError(error);
+  if (error) {
+    if (isEdgeFunctionNon2xx(error)) {
+      const msg = await resolveEdgeFunctionError(error);
+      throw new Error(msg);
+    }
+    throwIfError(error);
+  }
   return data as StripeConfigStatus;
 }
 
@@ -1062,7 +1193,13 @@ export async function saveStripeConfig(payload: {
   const { data, error } = await supabase.functions.invoke('set-stripe-config', {
     body: payload,
   });
-  throwIfError(error);
+  if (error) {
+    if (isEdgeFunctionNon2xx(error)) {
+      const msg = await resolveEdgeFunctionError(error);
+      throw new Error(msg);
+    }
+    throwIfError(error);
+  }
   return data as StripeConfigStatus;
 }
 
@@ -1097,7 +1234,7 @@ export async function upsertCompanySettings(payload: Partial<CompanySettings>) {
   };
   const { data, error } = await supabase
     .from('company_settings')
-    .upsert(normalizedPayload)
+    .upsert(normalizedPayload, { onConflict: 'company_id' })
     .select('*')
     .single();
   if (error) {
@@ -1112,7 +1249,7 @@ export async function upsertCompanySettings(payload: Partial<CompanySettings>) {
 
       const retry = await supabase
         .from('company_settings')
-        .upsert(fallbackPayload)
+        .upsert(fallbackPayload, { onConflict: 'company_id' })
         .select('*')
         .single();
       throwIfError(retry.error);
@@ -1625,16 +1762,36 @@ export async function getMachineProfitability(
 // ─── Invoice PDF Download ─────────────────────────────────────────────────────
 
 export async function downloadInvoicePdf(invoiceId: string, invoiceNumber: string) {
-  const { data, error } = await supabase.functions.invoke('generate-invoice-pdf', {
-    body: { invoice_id: invoiceId },
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('Not authenticated');
+
+  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? '';
+  const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? '';
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/generate-invoice-pdf`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'apikey': anonKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ invoice_id: invoiceId }),
   });
-  if (error) throw new Error(error.message ?? 'PDF generation failed');
-  const blob = new Blob([data as ArrayBuffer], { type: 'application/pdf' });
+
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => ({ error: 'PDF generation failed' }));
+    throw new Error((errBody as { error?: string }).error ?? 'PDF generation failed');
+  }
+
+  const blob = await response.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = `${invoiceNumber}.pdf`;
+  a.style.display = 'none';
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 

@@ -17,18 +17,18 @@ const hasStripePaymentsEnabled = async (
   adminClient: ReturnType<typeof createClient>,
   companyId: string,
 ) => {
-  const { data, error } = await adminClient
-    .from('company_stripe_keys')
-    .select('publishable_key, secret_key, is_active')
-    .eq('company_id', companyId)
-    .maybeSingle();
+  try {
+    const { data, error } = await adminClient
+      .from('company_stripe_keys')
+      .select('publishable_key, secret_key, is_active')
+      .eq('company_id', companyId)
+      .maybeSingle();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (data?.is_active && data.publishable_key && data.secret_key) {
-    return true;
+    if (!error && data?.is_active && data.publishable_key && data.secret_key) {
+      return true;
+    }
+  } catch {
+    // Table may not exist yet — fall through to env var check
   }
 
   return Boolean((Deno.env.get('STRIPE_PUBLISHABLE_KEY') ?? '') && (Deno.env.get('STRIPE_SECRET_KEY') ?? ''));
@@ -48,6 +48,18 @@ const getAppBaseUrl = () => {
     return configured.replace(/\/$/, '');
   }
   return 'http://localhost:5173';
+};
+
+const slugifyCompanyName = (name: string): string =>
+  name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const buildFromAddress = (companyName: string): string => {
+  const domain = (Deno.env.get('RESEND_FROM_DOMAIN') ?? '').trim();
+  const fallback = (Deno.env.get('RESEND_FROM_EMAIL') ?? '').trim();
+  if (!domain) return fallback;
+  const slug = slugifyCompanyName(companyName);
+  const local = slug ? `notifications.${slug}` : 'notifications';
+  return `${companyName} via Hasky <${local}@${domain}>`;
 };
 
 Deno.serve(async (req) => {
@@ -112,7 +124,7 @@ Deno.serve(async (req) => {
         sent_to,
         ${numberField},
         customers(name, email),
-        companies(name)
+        companies(name, email)
       `)
       .eq('id', documentId)
       .maybeSingle();
@@ -124,8 +136,8 @@ Deno.serve(async (req) => {
     const customer = normalizeRelation<{ name?: string; email?: string }>(
       documentRow.customers as { name?: string; email?: string } | { name?: string; email?: string }[] | null,
     );
-    const company = normalizeRelation<{ name?: string }>(
-      documentRow.companies as { name?: string } | { name?: string }[] | null,
+    const company = normalizeRelation<{ name?: string; email?: string }>(
+      documentRow.companies as { name?: string; email?: string } | { name?: string; email?: string }[] | null,
     );
 
     const toEmail = recipientEmail ?? customer?.email ?? null;
@@ -173,14 +185,16 @@ Deno.serve(async (req) => {
 
     if (sendEmail) {
       const resendApiKey = Deno.env.get('RESEND_API_KEY') ?? '';
-      const resendFrom = Deno.env.get('RESEND_FROM_EMAIL') ?? '';
-      if (!resendApiKey || !resendFrom) {
-        return jsonResponse(500, { error: 'RESEND_API_KEY and RESEND_FROM_EMAIL must be set' });
+      const resendDomain = (Deno.env.get('RESEND_FROM_DOMAIN') ?? '').trim();
+      const resendFromEmail = (Deno.env.get('RESEND_FROM_EMAIL') ?? '').trim();
+      if (!resendApiKey || (!resendDomain && !resendFromEmail)) {
+        return jsonResponse(500, { error: 'RESEND_API_KEY and either RESEND_FROM_DOMAIN or RESEND_FROM_EMAIL must be set' });
       }
 
       const number = documentRow[numberField as keyof typeof documentRow] as string;
       const title = documentType === 'invoice' ? 'Invoice' : 'Quote';
-      const companyName = company?.name ?? 'HireBase';
+      const companyName = company?.name ?? 'Hasky';
+      const companyEmail = company?.email ?? null;
       const customerName = customer?.name ?? 'there';
 
       const html = `
@@ -210,8 +224,9 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: resendFrom,
+          from: buildFromAddress(companyName),
           to: [toEmail],
+          reply_to: companyEmail ? [companyEmail] : undefined,
           subject: `${companyName} - ${title} ${number}`,
           html,
         }),

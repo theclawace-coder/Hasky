@@ -261,7 +261,7 @@ function stopServer(server) {
 async function main() {
   await loadDotEnv();
 
-  const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
+  const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:5173";
   const loginPath = sanitizePath(process.env.E2E_AUTH_LOGIN_PATH ?? "/login");
   const requestedRoles = getRolesToGenerate();
   const validRoles = requestedRoles.filter((role) => role === "basic" || role === "admin");
