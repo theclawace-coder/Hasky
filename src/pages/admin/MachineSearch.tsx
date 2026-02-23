@@ -1,7 +1,7 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
+import { notify } from '../../lib/notify';
 import { useCrossHireDeals } from '../../hooks/useCrossHireDeals';
 import { useMachines } from '../../hooks/useMachines';
 import { getAllCompaniesWithStats, searchAvailableMachines } from '../../services/api';
@@ -60,11 +60,11 @@ export default function MachineSearch() {
         supplier_company_id: selectedMachine?.company_id ?? null,
       };
       await saveDealMutation.mutateAsync(payload);
-      toast.success('Deal created');
+      notify.success('Deal created');
       setOpen(false);
       setSelectedMachineId(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to create deal');
+      notify.error(error instanceof Error ? error.message : 'Failed to create deal');
     }
   };
 

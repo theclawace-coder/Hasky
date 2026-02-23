@@ -1,6 +1,5 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { toast } from 'sonner';
 import {
   LayoutDashboard,
   Truck,
@@ -19,7 +18,11 @@ import {
   BookOpen,
   ChevronRight,
   LifeBuoy,
+  Volume2,
+  VolumeOff,
 } from 'lucide-react';
+import { notify } from '../../lib/notify';
+import { sounds } from '../../lib/sounds';
 import { useAuth } from '../../hooks/useAuth';
 import { useUiStore } from '../../store/uiStore';
 import { cn } from '../../lib/utils';
@@ -47,6 +50,35 @@ interface SidebarProps {
   onHelpClick: () => void;
 }
 
+function SoundToggle({ collapsed }: { collapsed: boolean }) {
+  const [muted, setMuted] = useState(sounds.isMuted());
+
+  const handleToggle = () => {
+    const next = sounds.toggleMute();
+    setMuted(next);
+    if (!next) sounds.click();
+  };
+
+  return (
+    <button
+      onClick={handleToggle}
+      className={cn(
+        'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200',
+        'text-white/40 hover:bg-white/[0.06] hover:text-white/80',
+        collapsed && 'justify-center px-2',
+      )}
+      title={muted ? 'Unmute sounds' : 'Mute sounds'}
+    >
+      {muted ? (
+        <VolumeOff className="size-5 shrink-0 text-white/30 transition-colors group-hover:text-white/60" />
+      ) : (
+        <Volume2 className="size-5 shrink-0 text-white/30 transition-colors group-hover:text-white/60" />
+      )}
+      {!collapsed ? <span className="flex-1">{muted ? 'Sounds Off' : 'Sounds On'}</span> : null}
+    </button>
+  );
+}
+
 export function Sidebar({ onHelpClick }: SidebarProps) {
   const { profile, company, isPlatformAdmin, signOut } = useAuth();
   const { sidebarCollapsed, toggleSidebarCollapsed, sidebarOpen, setSidebarOpen } = useUiStore();
@@ -60,7 +92,7 @@ export function Sidebar({ onHelpClick }: SidebarProps) {
     try {
       await signOut();
     } catch {
-      toast.error('Sign out failed — please try again');
+      notify.error('Sign out failed — please try again');
     }
   }, [signOut]);
 
@@ -145,21 +177,28 @@ export function Sidebar({ onHelpClick }: SidebarProps) {
                   aria-label={item.label}
                   className={({ isActive }) =>
                     cn(
-                      'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200',
+                      'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200',
                       isActive
-                        ? `${item.activeBg} ${item.activeText}`
+                        ? `${item.activeBg} ${item.activeText} sidebar-glow-breathe`
                         : 'text-white/40 hover:bg-white/[0.06] hover:text-white/80',
                       sidebarCollapsed && 'justify-center px-2',
                     )
                   }
                   style={({ isActive }) =>
                     isActive
-                      ? { boxShadow: `inset 0 0 20px ${item.glow}` }
+                      ? { '--glow-color': item.glow } as React.CSSProperties
                       : {}
                   }
                 >
                   {({ isActive }) => (
                     <>
+                      {/* Breathing indicator dot */}
+                      {isActive && (
+                        <span
+                          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 size-1.5 rounded-full animate-dot-breathe"
+                          style={{ backgroundColor: item.glow.replace('0.35', '1') }}
+                        />
+                      )}
                       <Icon
                         aria-hidden="true"
                         className={cn(
@@ -215,8 +254,8 @@ export function Sidebar({ onHelpClick }: SidebarProps) {
           ) : null}
         </nav>
 
-        {/* Help button */}
-        <div className="border-t border-white/[0.06] px-3 pt-2 pb-1">
+        {/* Help + Sound toggle */}
+        <div className="border-t border-white/[0.06] px-3 pt-2 pb-1 space-y-0.5">
           <button
             onClick={() => { setSidebarOpen(false); onHelpClick(); }}
             className={cn(
@@ -229,6 +268,7 @@ export function Sidebar({ onHelpClick }: SidebarProps) {
             <LifeBuoy className="size-5 shrink-0 text-white/30 transition-colors group-hover:text-white/60" />
             {!sidebarCollapsed ? <span className="flex-1">Help</span> : null}
           </button>
+          <SoundToggle collapsed={sidebarCollapsed} />
         </div>
 
         {/* User footer */}

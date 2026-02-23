@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { Users, Plus, X, ArrowRight, ChevronLeft, Send, Loader2 } from 'lucide-react';
+import { notify } from '../../../lib/notify';
 import { inviteTeamMember } from '../../../services/api';
 
 interface Invite {
@@ -41,11 +41,11 @@ export function TeamStep({ onNext, onBack }: Props) {
   const handleAdd = () => {
     const trimmed = email.trim().toLowerCase();
     if (!EMAIL_RE.test(trimmed)) {
-      toast.error('Enter a valid email address');
+      notify.error('Enter a valid email address');
       return;
     }
     if (invites.some((i) => i.email === trimmed)) {
-      toast.error('Already in the list');
+      notify.error('Already in the list');
       return;
     }
     setInvites((prev) => [...prev, { email: trimmed, role }]);
@@ -68,9 +68,9 @@ export function TeamStep({ onNext, onBack }: Props) {
       }
     }
     if (sent > 0) {
-      toast.success(`${sent} invite${sent !== 1 ? 's' : ''} sent!`);
+      notify.sent(`${sent} invite${sent !== 1 ? 's' : ''} sent!`);
     } else {
-      toast.error('Invites could not be sent — try again from Settings → Team');
+      notify.error('Invites could not be sent — try again from Settings → Team');
     }
     setSending(false);
     onNext(sent);

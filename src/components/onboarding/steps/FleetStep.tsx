@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { notify } from '../../../lib/notify';
 import {
   Truck,
   X,
@@ -46,7 +46,7 @@ export function FleetStep({ onNext, onBack, companyId }: Props) {
   const handleAdd = (values: MachineFormValues) => {
     setAdded((prev) => [...prev, values]);
     setFormKey((prev) => prev + 1);
-    toast.success('Machine added to onboarding list');
+    notify.success('Machine added to onboarding list');
   };
 
   const handleContinue = async () => {
@@ -55,7 +55,7 @@ export function FleetStep({ onNext, onBack, companyId }: Props) {
       return;
     }
     if (!companyId) {
-      toast.error('Could not determine your company. Please complete business setup first.');
+      notify.error('Could not determine your company. Please complete business setup first.');
       return;
     }
 
@@ -80,10 +80,10 @@ export function FleetStep({ onNext, onBack, companyId }: Props) {
     }
 
     if (saved > 0) {
-      toast.success(`${saved} machine${saved !== 1 ? 's' : ''} added to your fleet`);
+      notify.success(`${saved} machine${saved !== 1 ? 's' : ''} added to your fleet`);
     }
     if (failed > 0) {
-      toast.error(`${failed} machine${failed !== 1 ? 's' : ''} could not be saved`);
+      notify.error(`${failed} machine${failed !== 1 ? 's' : ''} could not be saved`);
     }
 
     setSaving(false);

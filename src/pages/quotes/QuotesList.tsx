@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Briefcase, CheckCircle2, Link2, Mail, Plus } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { useQuotes } from '../../hooks/useQuotes';
 import { createDocumentShareLink, sendDocumentEmail, updateBookingAndMachineStatus } from '../../services/api';
 import { Button } from '../../components/ui/Button';
@@ -39,28 +39,29 @@ export default function QuotesList() {
       const bookingId = await convertMutation.mutateAsync(quoteId);
       try {
         await updateBookingAndMachineStatus(bookingId, 'confirmed', 'on_hire');
-        toast.success('Quote converted and job confirmed');
+        notify.success('Quote converted and job confirmed');
       } catch {
-        toast.success('Quote converted to job — record payment to confirm');
+        notify.success('Quote converted to job — record payment to confirm');
       }
       navigate(`/bookings/${bookingId}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to convert quote');
+      notify.error(error instanceof Error ? error.message : 'Failed to convert quote');
     }
   };
 
   const handleSendQuote = async (quoteId: string, email?: string | null) => {
     setSendingQuoteId(quoteId);
+    const done = notify.progress('Sending quote…');
     try {
       const response = await sendDocumentEmail('quote', quoteId, email ?? undefined);
       if (response.email_sent) {
-        toast.success(response.to_email ? `Quote emailed to ${response.to_email}` : 'Quote email sent');
+        done(response.to_email ? `Quote emailed to ${response.to_email}` : 'Quote email sent');
       } else {
-        toast.info('Email service unavailable right now. A private quote link was generated instead.');
+        done('Email unavailable — a private link was generated instead', { error: true });
       }
       void quotesQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to send quote email');
+      done(error instanceof Error ? error.message : 'Failed to send quote email', { error: true });
     } finally {
       setSendingQuoteId(null);
     }
@@ -74,10 +75,10 @@ export default function QuotesList() {
         throw new Error('Clipboard is not available in this browser');
       }
       await navigator.clipboard.writeText(response.share_url);
-      toast.success('Private quote link copied');
+      notify.success('Private quote link copied');
       void quotesQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to copy quote link');
+      notify.error(error instanceof Error ? error.message : 'Failed to copy quote link');
     } finally {
       setCopyingQuoteId(null);
     }

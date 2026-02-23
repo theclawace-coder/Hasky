@@ -1,7 +1,7 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { List, LayoutGrid, Plus } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { useAuth } from '../../hooks/useAuth';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useBookings } from '../../hooks/useBookings';
@@ -59,10 +59,10 @@ export default function FleetList() {
         company_id: profile?.company_id ?? undefined,
       };
       await saveMachineMutation.mutateAsync(machinePayload);
-      toast.success('Machine saved');
+      notify.success('Machine saved');
       setOpen(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save machine');
+      notify.error(error instanceof Error ? error.message : 'Failed to save machine');
     }
   };
 

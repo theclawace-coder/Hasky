@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Menu, HelpCircle, Bell, UserPlus, Play, BookOpen, Sparkles } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { useAuth } from '../../hooks/useAuth';
 import { useUiStore } from '../../store/uiStore';
 import { useCustomers } from '../../hooks/useCustomers';
@@ -56,10 +56,10 @@ export function TopBar({ onTourClick, onWikiClick, onPageTourClick }: TopBarProp
   const handleQuickAddCustomer = async (values: CustomerFormValues) => {
     try {
       await saveCustomerMutation.mutateAsync(values);
-      toast.success(`${values.name} added as a customer`);
+      notify.success(`${values.name} added as a customer`);
       setAddCustomerOpen(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to add customer');
+      notify.error(error instanceof Error ? error.message : 'Failed to add customer');
     }
   };
 
@@ -134,7 +134,7 @@ export function TopBar({ onTourClick, onWikiClick, onPageTourClick }: TopBarProp
 
             {/* Notifications */}
             <button
-              onClick={() => toast.info('No new notifications')}
+              onClick={() => notify.info('No new notifications')}
               className="relative flex size-9 items-center justify-center rounded-xl text-slate-400 transition-all hover:bg-white/80 hover:text-slate-700 hover:shadow-sm"
               aria-label="Notifications"
               title="Notifications"

@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { notify } from '../../lib/notify';
 import { supabase } from '../../lib/supabase';
 import { AU_STATES } from '../../lib/constants';
 import { createSignup } from '../../services/api';
@@ -77,18 +77,18 @@ export default function Signup() {
     try {
       const signupData = await createSignup({ company: companyValues, user: values });
       if (signupData.session) {
-        toast.success("Account created — let's get you set up!");
+        notify.success("Account created — let's get you set up!");
         navigate('/onboarding', { replace: true });
         return;
       }
-      toast.success('Account created. Please log in.');
+      notify.success('Account created. Please log in.');
       navigate('/login', { replace: true });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Signup failed';
       if (msg.toLowerCase().includes('rate limit')) {
-        toast.error('Too many sign-up attempts. Please wait a few minutes and try again.', { duration: 8000 });
+        notify.error('Too many sign-up attempts. Please wait a few minutes and try again.');
       } else {
-        toast.error(msg);
+        notify.error(msg);
       }
     }
   };
@@ -101,9 +101,9 @@ export default function Signup() {
     });
     if (error) {
       if (error.message.toLowerCase().includes('provider') || error.message.includes('not enabled') || error.status === 400) {
-        toast.error('Google sign-in is not yet configured. Enable the Google provider in Supabase → Authentication → Providers.', { duration: 6000 });
+        notify.error('Google sign-in is not yet configured. Enable the Google provider in Supabase → Authentication → Providers.');
       } else {
-        toast.error(error.message);
+        notify.error(error.message);
       }
       setGoogleLoading(false);
     }

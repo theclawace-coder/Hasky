@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronDown, ChevronRight, Copy, ExternalLink } from 'lucide-react';
+import { notify } from '../../lib/notify';
 import { useAuth } from '../../hooks/useAuth';
 import {
   getCompanySettings,
@@ -170,9 +170,9 @@ export default function Settings() {
   const handleCopyWebhookUrl = async () => {
     try {
       await navigator.clipboard.writeText(webhookUrl);
-      toast.success('Webhook URL copied');
+      notify.success('Webhook URL copied');
     } catch {
-      toast.error('Failed to copy — please select and copy manually');
+      notify.error('Failed to copy — please select and copy manually');
     }
   };
 
@@ -209,10 +209,10 @@ export default function Settings() {
     onSuccess: async () => {
       await refreshProfile();
       setCompanyFormDraft(null);
-      toast.success('Company updated');
+      notify.success('Company updated');
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to save company');
+      notify.error(error instanceof Error ? error.message : 'Failed to save company');
     },
   });
 
@@ -228,9 +228,9 @@ export default function Settings() {
         throw new Error(error.message);
       }
       await refreshProfile();
-      toast.success('Company logo updated');
+      notify.success('Company logo updated');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not upload logo');
+      notify.error(error instanceof Error ? error.message : 'Could not upload logo');
     } finally {
       setIsUploadingLogo(false);
       if (companyLogoInputRef.current) {
@@ -251,9 +251,9 @@ export default function Settings() {
         throw new Error(error.message);
       }
       await refreshProfile();
-      toast.success('Company logo removed');
+      notify.success('Company logo removed');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not remove logo');
+      notify.error(error instanceof Error ? error.message : 'Could not remove logo');
     } finally {
       setIsUploadingLogo(false);
     }
@@ -269,10 +269,10 @@ export default function Settings() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['company_settings'] });
       setSettingsFormDraft(null);
-      toast.success('Settings updated');
+      notify.success('Settings updated');
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to save settings');
+      notify.error(error instanceof Error ? error.message : 'Failed to save settings');
     },
   });
 
@@ -292,10 +292,10 @@ export default function Settings() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['stripe_config'] });
       setStripeFormDraft(null);
-      toast.success('Stripe settings updated');
+      notify.success('Stripe settings updated');
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to update Stripe settings');
+      notify.error(error instanceof Error ? error.message : 'Failed to update Stripe settings');
     },
   });
 
@@ -304,7 +304,7 @@ export default function Settings() {
       upsertProfile({ id, role, is_active }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['profiles'] });
-      toast.success('Team member updated');
+      notify.success('Team member updated');
     },
   });
 
@@ -319,11 +319,11 @@ export default function Settings() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['team_invites'] });
-      toast.success('Invite sent');
+      notify.sent('Invite sent');
       setInviteForm({ email: '', role: 'user' });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to send invite');
+      notify.error(error instanceof Error ? error.message : 'Failed to send invite');
     },
   });
 
@@ -345,10 +345,10 @@ export default function Settings() {
       setProfileForm((state) => ({ ...state, password: '' }));
       await refreshProfile();
       setProfileFormDraft(null);
-      toast.success('Profile updated');
+      notify.success('Profile updated');
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to save profile');
+      notify.error(error instanceof Error ? error.message : 'Failed to save profile');
     },
   });
 

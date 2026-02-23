@@ -1,6 +1,6 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { useCustomer, useCustomers } from '../../hooks/useCustomers';
@@ -60,11 +60,11 @@ export default function CustomerDetail() {
         id,
         company_id: profile.company_id,
       });
-      toast.success('Customer updated');
+      notify.success('Customer updated');
       setOpen(false);
       customerQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update customer');
+      notify.error(error instanceof Error ? error.message : 'Failed to update customer');
     }
   };
 

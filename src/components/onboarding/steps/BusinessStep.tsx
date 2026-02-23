@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
+import { notify } from '../../../lib/notify';
 import {
   ArrowRight,
   Building2,
@@ -272,7 +272,7 @@ export function BusinessStep({ onNext, onBack }: Props) {
       switch (step) {
         case 0:
           if (!form.company_name.trim()) {
-            toast.error('Company name is required');
+            notify.error('Company name is required');
             setSaving(false);
             return;
           }
@@ -323,7 +323,7 @@ export function BusinessStep({ onNext, onBack }: Props) {
       }
       advance();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not save');
+      notify.error(err instanceof Error ? err.message : 'Could not save');
     } finally {
       setSaving(false);
     }
@@ -346,9 +346,9 @@ export function BusinessStep({ onNext, onBack }: Props) {
       const { error } = await supabase.from('companies').update({ logo_url: nextLogoUrl }).eq('id', company.id);
       if (error) throw new Error(error.message);
       await refreshProfile();
-      toast.success('Logo uploaded');
+      notify.success('Logo uploaded');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not upload logo');
+      notify.error(error instanceof Error ? error.message : 'Could not upload logo');
     } finally {
       setUploadingLogo(false);
     }
@@ -362,9 +362,9 @@ export function BusinessStep({ onNext, onBack }: Props) {
       const { error } = await supabase.from('companies').update({ logo_url: null }).eq('id', company.id);
       if (error) throw new Error(error.message);
       await refreshProfile();
-      toast.success('Logo removed');
+      notify.success('Logo removed');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not remove logo');
+      notify.error(error instanceof Error ? error.message : 'Could not remove logo');
     } finally {
       setUploadingLogo(false);
     }

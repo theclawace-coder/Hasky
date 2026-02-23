@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { useCustomers } from '../../hooks/useCustomers';
@@ -59,10 +59,10 @@ export default function CustomersList() {
         ...values,
         company_id: profile.company_id,
       });
-      toast.success('Customer saved');
+      notify.success('Customer saved');
       setOpen(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save customer');
+      notify.error(error instanceof Error ? error.message : 'Failed to save customer');
     }
   };
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { useAuth } from '../../hooks/useAuth';
 import { useBookings } from '../../hooks/useBookings';
 import { useCustomers } from '../../hooks/useCustomers';
@@ -150,10 +150,10 @@ export default function NewBooking() {
       };
 
       const booking = await saveBookingMutation.mutateAsync({ payload, chargeItems, bookingMachines });
-      toast.success('Job created!');
+      notify.booking('Job created!');
       navigate(`/bookings/${booking.id}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to create job');
+      notify.error(error instanceof Error ? error.message : 'Failed to create job');
     }
   };
 

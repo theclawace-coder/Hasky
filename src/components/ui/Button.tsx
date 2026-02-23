@@ -1,4 +1,4 @@
-import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import { forwardRef, type ButtonHTMLAttributes, type MouseEvent, useCallback, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -17,7 +17,6 @@ const variantClasses: Record<ButtonVariant, string> = {
     'text-white font-semibold',
     'shadow-lg shadow-violet-500/25',
     'hover:shadow-xl hover:shadow-violet-500/35 hover:brightness-110',
-    'active:scale-[0.97] active:brightness-95',
     'disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed',
   ].join(' '),
 
@@ -26,14 +25,12 @@ const variantClasses: Record<ButtonVariant, string> = {
     'text-slate-700 font-medium',
     'shadow-sm shadow-black/5',
     'hover:bg-white/90 hover:shadow-md hover:-translate-y-px',
-    'active:scale-[0.98] active:bg-white/70',
     'disabled:opacity-50 disabled:cursor-not-allowed',
   ].join(' '),
 
   ghost: [
     'bg-transparent text-slate-600',
     'hover:bg-white/60 hover:backdrop-blur-md hover:text-slate-900 hover:shadow-sm',
-    'active:bg-white/40 active:scale-[0.98]',
     'disabled:opacity-40 disabled:cursor-not-allowed',
   ].join(' '),
 
@@ -42,7 +39,6 @@ const variantClasses: Record<ButtonVariant, string> = {
     'text-white font-semibold',
     'shadow-lg shadow-red-500/25',
     'hover:shadow-xl hover:shadow-red-500/35 hover:brightness-110',
-    'active:scale-[0.97]',
     'disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed',
   ].join(' '),
 
@@ -51,7 +47,6 @@ const variantClasses: Record<ButtonVariant, string> = {
     'text-white font-semibold',
     'shadow-lg shadow-emerald-500/25',
     'hover:shadow-xl hover:shadow-emerald-500/35 hover:brightness-110',
-    'active:scale-[0.97]',
     'disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed',
   ].join(' '),
 
@@ -59,7 +54,6 @@ const variantClasses: Record<ButtonVariant, string> = {
     'bg-transparent border border-violet-300/60',
     'text-violet-700 font-medium',
     'hover:bg-violet-50/60 hover:border-violet-400 hover:shadow-sm',
-    'active:scale-[0.98]',
     'disabled:opacity-40 disabled:cursor-not-allowed',
   ].join(' '),
 };
@@ -71,21 +65,46 @@ const sizeClasses: Record<ButtonSize, string> = {
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, variant = 'primary', size = 'md', loading, children, disabled, ...props },
+  { className, variant = 'primary', size = 'md', loading, children, disabled, onClick, ...props },
   ref,
 ) {
+  const innerRef = useRef<HTMLButtonElement | null>(null);
+
+  const handleClick = useCallback(
+    (e: MouseEvent<HTMLButtonElement>) => {
+      const el = innerRef.current;
+      if (el && !disabled && !loading) {
+        el.style.transform = 'scale(0.95)';
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            el.style.transform = '';
+          });
+        });
+      }
+      onClick?.(e);
+    },
+    [onClick, disabled, loading],
+  );
+
   return (
     <button
-      ref={ref}
+      ref={(node) => {
+        innerRef.current = node;
+        if (typeof ref === 'function') ref(node);
+        else if (ref) ref.current = node;
+      }}
       className={cn(
         'inline-flex min-h-[36px] items-center justify-center',
-        'font-medium transition-all duration-200',
+        'font-medium',
+        'transition-[transform,box-shadow,background,border-color,opacity,filter] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
+        'active:scale-[0.96] active:brightness-[0.97]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2',
         variantClasses[variant],
         sizeClasses[size],
         className,
       )}
       disabled={disabled || loading}
+      onClick={handleClick}
       {...props}
     >
       {loading ? (

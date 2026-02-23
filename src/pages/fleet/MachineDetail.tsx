@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Pencil } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Paperclip, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -77,9 +77,9 @@ export default function MachineDetail() {
     }
     try {
       await updateStatusMutation.mutateAsync({ id, status });
-      toast.success('Machine status updated');
+      notify.success('Machine status updated');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Update failed');
+      notify.error(error instanceof Error ? error.message : 'Update failed');
     }
   };
 
@@ -95,10 +95,10 @@ export default function MachineDetail() {
         photo_urls: photo_url ? [photo_url] : null,
       };
       await saveMachineMutation.mutateAsync(machinePayload);
-      toast.success('Machine updated');
+      notify.success('Machine updated');
       setEditOpen(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update machine');
+      notify.error(error instanceof Error ? error.message : 'Failed to update machine');
     }
   };
 
@@ -129,11 +129,11 @@ export default function MachineDetail() {
         performed_by: maintenanceForm.performed_by || null,
         document_urls: documentUrls,
       });
-      toast.success('Maintenance record added');
+      notify.success('Maintenance record added');
       setMaintenanceOpen(false);
       setMaintenanceFiles([]);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save maintenance');
+      notify.error(error instanceof Error ? error.message : 'Failed to save maintenance');
     } finally {
       setUploadingFiles(false);
     }
@@ -197,7 +197,7 @@ export default function MachineDetail() {
           </div>
           <p className="mt-4 text-sm text-slate-600">{machine.notes || 'No notes added yet.'}</p>
           <div className="mt-4 max-w-xs">
-            <PhotoUpload onUpload={() => toast.info('Photo upload wired to Supabase bucket in integration step.')} />
+            <PhotoUpload onUpload={() => notify.info('Photo upload wired to Supabase bucket in integration step.')} />
           </div>
         </Card>
 

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { BOOKING_STATUSES, DEPOSIT_TYPES, PAYMENT_PLANS, RATE_TYPES } from '../../lib/constants';
 import { AddressAutocomplete } from '../ui/AddressAutocomplete';
 import { Button } from '../ui/Button';
@@ -121,9 +121,9 @@ export function BookingForm({
       const createdCustomer = await onCreateCustomer(customerValues);
       setValue('customer_id', createdCustomer.id, { shouldDirty: true, shouldValidate: true });
       setCustomerModalOpen(false);
-      toast.success('Customer added to booking');
+      notify.success('Customer added to booking');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to add customer');
+      notify.error(error instanceof Error ? error.message : 'Failed to add customer');
     }
   };
 

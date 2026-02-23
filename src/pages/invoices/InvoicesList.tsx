@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Link2, Mail, Plus, Search } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { useAuth } from '../../hooks/useAuth';
 import { useInvoices } from '../../hooks/useInvoices';
 import { useCustomers } from '../../hooks/useCustomers';
@@ -72,7 +72,7 @@ export default function InvoicesList() {
     }
 
     if (!payload.invoice_number || !payload.customer_id || !payload.due_date) {
-      toast.error('Invoice number, customer, and due date are required');
+      notify.error('Invoice number, customer, and due date are required');
       return;
     }
 
@@ -91,25 +91,26 @@ export default function InvoicesList() {
         payload: invoicePayload,
         items,
       });
-      toast.success('Invoice saved');
+      notify.success('Invoice saved');
       setOpen(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save invoice');
+      notify.error(error instanceof Error ? error.message : 'Failed to save invoice');
     }
   };
 
   const handleSendInvoice = async (invoiceId: string, email?: string | null) => {
     setSendingInvoiceId(invoiceId);
+    const done = notify.progress('Sending invoice…');
     try {
       const response = await sendDocumentEmail('invoice', invoiceId, email ?? undefined);
       if (response.email_sent) {
-        toast.success(response.to_email ? `Invoice emailed to ${response.to_email}` : 'Invoice email sent');
+        done(response.to_email ? `Invoice emailed to ${response.to_email}` : 'Invoice email sent');
       } else {
-        toast.info('Email service unavailable right now. A private invoice link was generated instead.');
+        done('Email unavailable — a private link was generated instead', { error: true });
       }
       void invoicesQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to send invoice email');
+      done(error instanceof Error ? error.message : 'Failed to send invoice email', { error: true });
     } finally {
       setSendingInvoiceId(null);
     }
@@ -123,10 +124,10 @@ export default function InvoicesList() {
         throw new Error('Clipboard is not available in this browser');
       }
       await navigator.clipboard.writeText(response.share_url);
-      toast.success('Private invoice link copied');
+      notify.success('Private invoice link copied');
       void invoicesQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to copy invoice link');
+      notify.error(error instanceof Error ? error.message : 'Failed to copy invoice link');
     } finally {
       setCopyingInvoiceId(null);
     }

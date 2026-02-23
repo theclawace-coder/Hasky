@@ -6,11 +6,12 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
-import { toast } from 'sonner';
 import { Lock, CreditCard, AlertCircle } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { SuccessAnimation } from '../ui/SuccessAnimation';
 import { formatCurrency } from '../../lib/utils';
+import { notify } from '../../lib/notify';
 import { supabase } from '../../lib/supabase';
 import type { DocumentType } from '../../types';
 
@@ -34,6 +35,7 @@ function PaymentForm({ amount, documentLabel, onSuccess }: PaymentFormProps) {
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,14 +69,28 @@ function PaymentForm({ amount, documentLabel, onSuccess }: PaymentFormProps) {
         return;
       }
 
-      toast.success(`Payment received for ${documentLabel}.`);
-      onSuccess();
+      setShowSuccess(true);
+      notify.paymentReceived(`Payment received for ${documentLabel}`);
+      setTimeout(onSuccess, 1800);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (showSuccess) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <SuccessAnimation
+          show
+          size={90}
+          message="Payment successful!"
+          subMessage={`${formatCurrency(amount)} received for ${documentLabel}`}
+        />
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">

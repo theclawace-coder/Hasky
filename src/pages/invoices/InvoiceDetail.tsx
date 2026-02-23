@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { CreditCard, Printer, CheckCircle, ArrowLeft, Mail, Link2, DollarSign, Download, ExternalLink, Bell, Receipt } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
@@ -61,11 +61,11 @@ export default function InvoiceDetail() {
   const sendReceiptMutation = useMutation({
     mutationFn: (paymentId: string) => sendPaymentReceipt(paymentId),
     onSuccess: (res) => {
-      toast.success(`Receipt emailed to ${res.to_email}`);
+      notify.sent(`Receipt emailed to ${res.to_email}`);
       void queryClient.invalidateQueries({ queryKey: ['invoice_payments', id] });
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to send receipt');
+      notify.error(err instanceof Error ? err.message : 'Failed to send receipt');
     },
     onSettled: () => setSendingReceiptId(null),
   });
@@ -103,10 +103,10 @@ export default function InvoiceDetail() {
     if (!id) return;
     try {
       await updateStatusMutation.mutateAsync({ id, status });
-      toast.success('Invoice updated');
+      notify.success('Invoice updated');
       void invoiceQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update invoice');
+      notify.error(error instanceof Error ? error.message : 'Failed to update invoice');
     }
   };
 
@@ -114,20 +114,20 @@ export default function InvoiceDetail() {
     if (!id || !invoice) return;
     const amount = parseFloat(paymentAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast.error('Enter a valid payment amount');
+      notify.error('Enter a valid payment amount');
       return;
     }
     if (amount > outstanding + 0.01) {
-      toast.error(`Amount cannot exceed outstanding balance of ${formatCurrency(outstanding)}`);
+      notify.error(`Amount cannot exceed outstanding balance of ${formatCurrency(outstanding)}`);
       return;
     }
     try {
       await recordPaymentMutation.mutateAsync({ id, amount, method: paymentMethod, notes: paymentNotes || undefined });
       const outstanding = invoice.total - (Number(invoice.paid_amount ?? 0) + amount);
       if (outstanding <= 0) {
-        toast.success('Invoice fully paid');
+        notify.paymentReceived('Invoice fully paid');
       } else {
-        toast.success(`${formatCurrency(amount)} recorded — ${formatCurrency(Math.max(outstanding, 0))} still outstanding`);
+        notify.paymentReceived(`${formatCurrency(amount)} recorded — ${formatCurrency(Math.max(outstanding, 0))} still outstanding`);
       }
 
       // Optionally send a receipt email.
@@ -138,9 +138,9 @@ export default function InvoiceDetail() {
         if (newest) {
           try {
             const receiptRes = await sendPaymentReceipt(newest.id);
-            toast.success(`Receipt emailed to ${receiptRes.to_email}`);
+            notify.sent(`Receipt emailed to ${receiptRes.to_email}`);
           } catch (receiptErr) {
-            toast.error(receiptErr instanceof Error ? receiptErr.message : 'Payment recorded but receipt could not be sent');
+            notify.error(receiptErr instanceof Error ? receiptErr.message : 'Payment recorded but receipt could not be sent');
           }
         }
       }
@@ -152,22 +152,23 @@ export default function InvoiceDetail() {
       void invoiceQuery.refetch();
       void paymentsQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to record payment');
+      notify.error(error instanceof Error ? error.message : 'Failed to record payment');
     }
   };
 
   const handleSendEmail = async () => {
     setSendingEmail(true);
+    const done = notify.progress('Sending invoice email…');
     try {
       const response = await sendDocumentEmail('invoice', invoice.id, invoice.customers?.email ?? undefined);
       if (response.email_sent) {
-        toast.success(response.to_email ? `Invoice emailed to ${response.to_email}` : 'Invoice email sent');
+        done(response.to_email ? `Invoice emailed to ${response.to_email}` : 'Invoice email sent');
       } else {
-        toast.info('Email service unavailable right now. A private invoice link was generated instead.');
+        done('Email service unavailable — a private link was generated instead', { error: true });
       }
       void invoiceQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to send invoice email');
+      done(error instanceof Error ? error.message : 'Failed to send invoice email', { error: true });
     } finally {
       setSendingEmail(false);
     }
@@ -181,10 +182,10 @@ export default function InvoiceDetail() {
         throw new Error('Clipboard is not available in this browser');
       }
       await navigator.clipboard.writeText(response.share_url);
-      toast.success('Private invoice link copied');
+      notify.success('Private invoice link copied');
       void invoiceQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to copy private link');
+      notify.error(error instanceof Error ? error.message : 'Failed to copy private link');
     } finally {
       setCopyingLink(false);
     }
@@ -194,10 +195,9 @@ export default function InvoiceDetail() {
     setDownloadingPdf(true);
     try {
       await downloadInvoicePdf(invoice.id, invoice.invoice_number);
-      toast.success('Invoice PDF downloaded');
+      notify.success('Invoice PDF downloaded');
     } catch {
-      // Edge Function not deployed — fall back to browser print
-      toast.info('PDF service unavailable — opening print dialog');
+      notify.info('PDF service unavailable — opening print dialog');
       window.print();
     } finally {
       setDownloadingPdf(false);
@@ -206,11 +206,12 @@ export default function InvoiceDetail() {
 
   const handleSendReminder = async () => {
     setSendingReminder(true);
+    const done = notify.progress('Sending payment reminder…');
     try {
       const response = await sendPaymentReminder(invoice.id);
-      toast.success(`Payment reminder sent to ${response.to_email}`);
+      done(`Payment reminder sent to ${response.to_email}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to send reminder');
+      done(error instanceof Error ? error.message : 'Failed to send reminder', { error: true });
     } finally {
       setSendingReminder(false);
     }

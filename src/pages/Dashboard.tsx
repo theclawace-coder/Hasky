@@ -26,7 +26,9 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { LastUpdated } from '../components/ui/LastUpdated';
 import { formatCurrency, formatDate } from '../lib/utils';
+import { useCountUp } from '../hooks/useCountUp';
 
 /* ── Animation variants ───────────────────────────────────────── */
 const container = {
@@ -70,6 +72,28 @@ export default function Dashboard() {
   const repair           = stats?.underRepair  ?? 0;
   const total            = Math.max(available + onHire + repair, 1);
   const hireRate         = Math.round((onHire / total) * 100);
+
+  const isLoaded = !statsQuery.isLoading;
+  const animatedPaid = useCountUp({ end: stats?.paidThisMonth ?? 0, duration: 1400, decimals: 2, enabled: isLoaded });
+  const animatedInvoiced = useCountUp({ end: stats?.invoicedThisMonth ?? 0, duration: 1200, decimals: 2, enabled: isLoaded });
+  const animatedOutstanding = useCountUp({ end: stats?.outstanding ?? 0, duration: 1200, decimals: 2, enabled: isLoaded });
+  const animatedPaidCard = useCountUp({ end: stats?.paidThisMonth ?? 0, duration: 1200, decimals: 2, enabled: isLoaded });
+  const animatedRevenueMap: Record<string, number> = {
+    invoicedThisMonth: animatedInvoiced,
+    outstanding: animatedOutstanding,
+    paidThisMonth: animatedPaidCard,
+  };
+
+  const animatedTotalMachines = useCountUp({ end: stats?.totalMachines ?? 0, duration: 800, enabled: isLoaded });
+  const animatedOnHire = useCountUp({ end: stats?.onHire ?? 0, duration: 900, enabled: isLoaded });
+  const animatedAvailable = useCountUp({ end: stats?.available ?? 0, duration: 1000, enabled: isLoaded });
+  const animatedUnderRepair = useCountUp({ end: stats?.underRepair ?? 0, duration: 1000, enabled: isLoaded });
+  const animatedFleetMap: Record<string, number> = {
+    totalMachines: animatedTotalMachines,
+    onHire: animatedOnHire,
+    available: animatedAvailable,
+    underRepair: animatedUnderRepair,
+  };
   const overdueInvoices  = attentionQuery.data?.overdueInvoices ?? [];
   const expiringQuotes   = attentionQuery.data?.expiringQuotes  ?? [];
   const pendingJobs      = attentionQuery.data?.pendingJobs     ?? [];
@@ -98,8 +122,13 @@ export default function Dashboard() {
             boxShadow: '0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)',
           }}
         >
-          {/* Date */}
-          <p className="text-sm font-medium text-slate-400">{format(new Date(), 'EEEE, dd MMMM yyyy')}</p>
+          {/* Date + live refresh indicator */}
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm font-medium text-slate-400">{format(new Date(), 'EEEE, dd MMMM yyyy')}</p>
+            {statsQuery.dataUpdatedAt ? (
+              <LastUpdated date={new Date(statsQuery.dataUpdatedAt)} />
+            ) : null}
+          </div>
 
           {/* Greeting */}
           <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900 lg:text-4xl">
@@ -125,7 +154,7 @@ export default function Dashboard() {
                   backgroundClip: 'text',
                 }}
               >
-                {formatCurrency(stats?.paidThisMonth ?? 0)}
+                {formatCurrency(animatedPaid)}
               </span>
             )}
             <p className="text-base text-slate-500">this month</p>
@@ -224,7 +253,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-2">
               <AlertTriangle className="size-5 text-red-500 shrink-0" />
               <h3 className="font-bold text-red-800">Needs your attention</h3>
-              <span className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white shadow-sm">
+              <span className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white shadow-sm animate-pulse-ring-red">
                 {overdueInvoices.length + expiringQuotes.length + pendingJobs.length + overdueReturns.length}
               </span>
             </div>
@@ -333,7 +362,7 @@ export default function Dashboard() {
                       <Skeleton className="mt-2 h-9 w-16 rounded-lg" />
                     ) : (
                       <p className="mt-1.5 text-3xl font-black tracking-tight text-slate-900">
-                        {stats?.[card.key] ?? 0}
+                        {animatedFleetMap[card.key] ?? 0}
                       </p>
                     )}
                   </div>
@@ -367,7 +396,7 @@ export default function Dashboard() {
                 <Skeleton className="mt-3 h-7 w-28 rounded-lg" />
               ) : (
                 <p className="mt-2 text-2xl font-black tracking-tight text-slate-900">
-                  {formatCurrency(stats?.[key] ?? 0)}
+                  {formatCurrency(animatedRevenueMap[key] ?? 0)}
                 </p>
               )}
               <p className="mt-1 text-xs text-slate-400">
@@ -384,7 +413,12 @@ export default function Dashboard() {
           {/* Utilisation */}
           <Card className="lg:col-span-2">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-slate-900">Fleet Utilisation</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-slate-900">Fleet Utilisation</h3>
+                {statsQuery.dataUpdatedAt ? (
+                  <LastUpdated date={new Date(statsQuery.dataUpdatedAt)} prefix="" className="hidden sm:inline-flex" />
+                ) : null}
+              </div>
               <span
                 className="rounded-full px-2.5 py-1 text-xs font-bold"
                 style={{ background: 'rgba(245,158,11,0.12)', color: '#92400e' }}
@@ -441,6 +475,9 @@ export default function Dashboard() {
               <div className="flex items-center gap-2">
                 <CalendarRange className="size-4 text-violet-500" />
                 <h3 className="font-bold text-slate-900">Upcoming Jobs</h3>
+                {upcomingQuery.dataUpdatedAt ? (
+                  <LastUpdated date={new Date(upcomingQuery.dataUpdatedAt)} prefix="" className="hidden sm:inline-flex" />
+                ) : null}
               </div>
               <Link
                 to="/bookings"

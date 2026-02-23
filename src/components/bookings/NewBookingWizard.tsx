@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { Link } from 'react-router-dom';
 import {
   Truck,
@@ -316,7 +316,7 @@ export function NewBookingWizard({
   /** Toggle a machine in/out of the selection. */
   const handleMachineToggle = (machine: Machine) => {
     if (conflictedMachineIds.has(machine.id)) {
-      toast.error(`${machine.name} is already booked for those dates. Pick different dates or another machine.`);
+      notify.error(`${machine.name} is already booked for those dates. Pick different dates or another machine.`);
       return;
     }
     setValues((v) => {

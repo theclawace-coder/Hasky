@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { AlertTriangle, CheckCircle2, CreditCard, DollarSign, Pencil, Plus, XCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useBooking, useBookings } from '../../hooks/useBookings';
@@ -121,10 +121,10 @@ export default function BookingDetail() {
           console.warn('Could not update linked quote status');
         }
       }
-      toast.success('Booking updated');
+      notify.success('Booking updated');
       void bookingQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update booking');
+      notify.error(error instanceof Error ? error.message : 'Failed to update booking');
     }
   };
 
@@ -132,10 +132,10 @@ export default function BookingDetail() {
     if (!id) return;
     try {
       const invoiceId = await generateInvoiceMutation.mutateAsync(id);
-      toast.success('Draft invoice created');
+      notify.success('Draft invoice created');
       navigate(`/invoices/${invoiceId}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to generate invoice');
+      notify.error(error instanceof Error ? error.message : 'Failed to generate invoice');
     }
   };
 
@@ -143,10 +143,10 @@ export default function BookingDetail() {
     if (!id || !depositDue) return;
     try {
       await markDepositPaidMutation.mutateAsync({ bookingId: id, amount: depositOutstanding });
-      toast.success('Deposit marked paid');
+      notify.paymentReceived('Deposit marked paid');
       void bookingQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to mark deposit paid');
+      notify.error(error instanceof Error ? error.message : 'Failed to mark deposit paid');
     }
   };
 
@@ -154,10 +154,10 @@ export default function BookingDetail() {
     if (!id) return;
     try {
       await markPaidInFullMutation.mutateAsync({ bookingId: id });
-      toast.success('Payment marked in full');
+      notify.paymentReceived('Payment marked in full');
       void bookingQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to mark payment');
+      notify.error(error instanceof Error ? error.message : 'Failed to mark payment');
     }
   };
 
@@ -165,7 +165,7 @@ export default function BookingDetail() {
     if (!id || !booking) return;
     const increment = parseFloat(partialPaymentAmount);
     if (isNaN(increment) || increment <= 0) {
-      toast.error('Enter a valid payment amount');
+      notify.error('Enter a valid payment amount');
       return;
     }
     try {
@@ -173,15 +173,15 @@ export default function BookingDetail() {
       await markDepositPaidMutation.mutateAsync({ bookingId: id, amount: cumulativeAmount });
       const remaining = Math.max(totalAmount - cumulativeAmount, 0);
       if (remaining <= 0) {
-        toast.success('Job fully paid');
+        notify.paymentReceived('Job fully paid');
       } else {
-        toast.success(`${formatCurrency(increment)} recorded — ${formatCurrency(remaining)} still outstanding`);
+        notify.paymentReceived(`${formatCurrency(increment)} recorded — ${formatCurrency(remaining)} still outstanding`);
       }
       setPartialPaymentOpen(false);
       setPartialPaymentAmount('');
       void bookingQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to record payment');
+      notify.error(error instanceof Error ? error.message : 'Failed to record payment');
     }
   };
 
@@ -211,11 +211,11 @@ export default function BookingDetail() {
           unit_price: item.unit_price,
         })),
       });
-      toast.success('Job updated');
+      notify.success('Job updated');
       setEditOpen(false);
       void bookingQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update job');
+      notify.error(error instanceof Error ? error.message : 'Failed to update job');
     }
   };
 
@@ -691,7 +691,7 @@ export default function BookingDetail() {
               loading={logCostMutation.isPending}
               onClick={async () => {
                 if (!id || !booking || !costForm.description || !costForm.amount) {
-                  toast.error('Description and amount are required');
+                  notify.error('Description and amount are required');
                   return;
                 }
                 try {
@@ -705,11 +705,11 @@ export default function BookingDetail() {
                     gst_amount: 0,
                     date: new Date().toISOString().split('T')[0],
                   });
-                  toast.success('Cost recorded');
+                  notify.success('Cost recorded');
                   setCostForm({ category: 'Fuel', description: '', amount: '' });
                   setLogCostOpen(false);
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : 'Failed to save cost');
+                  notify.error(error instanceof Error ? error.message : 'Failed to save cost');
                 }
               }}
             >

@@ -1,6 +1,6 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { DEAL_STATUSES } from '../../lib/constants';
 import { useCrossHireDeals } from '../../hooks/useCrossHireDeals';
 import { KanbanBoard } from '../../components/ui/KanbanBoard';
@@ -23,20 +23,20 @@ export default function CrossHireDeals() {
   const moveDeal = async (id: string, status: string) => {
     try {
       await saveDealMutation.mutateAsync({ id, status: status as CrossHireDeal['status'] });
-      toast.success('Deal status updated');
+      notify.success('Deal status updated');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update deal');
+      notify.error(error instanceof Error ? error.message : 'Failed to update deal');
     }
   };
 
   const saveDeal = async (values: DealFormValues) => {
     try {
       await saveDealMutation.mutateAsync(values);
-      toast.success('Deal saved');
+      notify.success('Deal saved');
       setOpen(false);
       setSelectedId(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save deal');
+      notify.error(error instanceof Error ? error.message : 'Failed to save deal');
     }
   };
 

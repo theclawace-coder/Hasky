@@ -3,7 +3,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Upload, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '../../lib/notify';
 import { AU_STATES } from '../../lib/constants';
 import { uploadDocument } from '../../services/api';
 import { AddressAutocomplete } from '../ui/AddressAutocomplete';
@@ -79,7 +79,7 @@ export function CustomerForm({ defaultValues, onSubmit, loading }: CustomerFormP
       setValue('drivers_licence_image_url', url, { shouldDirty: true });
       setLicenceFile(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to upload licence image');
+      notify.error(error instanceof Error ? error.message : 'Failed to upload licence image');
     } finally {
       setUploadingLicence(false);
     }

@@ -3,9 +3,9 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { Mail, Lock } from 'lucide-react';
+import { notify } from '../../lib/notify';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../components/ui/Button';
@@ -49,10 +49,10 @@ export default function Login() {
   const onSubmit = async (values: LoginFormValues) => {
     const { error } = await supabase.auth.signInWithPassword(values);
     if (error) {
-      toast.error(error.message);
+      notify.error(error.message);
       return;
     }
-    toast.success('Welcome back 👋');
+    notify.success('Welcome back 👋');
     navigate('/dashboard');
   };
 
@@ -64,9 +64,9 @@ export default function Login() {
     });
     if (error) {
       if (error.message.toLowerCase().includes('provider') || error.message.includes('not enabled') || error.status === 400) {
-        toast.error('Google sign-in is not yet configured. Please enable the Google provider in your Supabase project.', { duration: 6000 });
+        notify.error('Google sign-in is not yet configured. Please enable the Google provider in your Supabase project.');
       } else {
-        toast.error(error.message);
+        notify.error(error.message);
       }
       setGoogleLoading(false);
     }

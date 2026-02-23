@@ -18,8 +18,8 @@ import {
   Truck,
   Award,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
+import { notify } from '../../lib/notify';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useExpenses, useAccountingSummary, useMachineProfitability, useMachineExpenses } from '../../hooks/useAccounting';
@@ -131,7 +131,7 @@ function ExpenseFormModal({
         if (uploadError) throw uploadError;
         receipt_url = path;
       } catch {
-        toast.error('Receipt upload failed. Ensure the "receipts" storage bucket exists in Supabase.');
+        notify.error('Receipt upload failed. Ensure the "receipts" storage bucket exists in Supabase.');
         setUploading(false);
         return;
       }
@@ -392,20 +392,28 @@ export default function AccountingPage() {
         company_id: profile.company_id,
         created_by: profile.id,
       });
-      toast.success('Expense saved');
+      notify.success('Expense saved');
       setExpenseModalOpen(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save expense');
+      notify.error(err instanceof Error ? err.message : 'Failed to save expense');
     }
   };
 
   const handleDeleteExpense = async (id: string) => {
-    if (!confirm('Delete this expense?')) return;
+    const expense = expenses.find((e) => e.id === id);
     try {
       await deleteMutation.mutateAsync(id);
-      toast.success('Expense deleted');
+      notify.withUndo('Expense deleted', () => {
+        if (expense) {
+          void upsertMutation.mutateAsync({
+            ...expense,
+            company_id: profile?.company_id ?? expense.company_id,
+            created_by: profile?.id ?? expense.created_by,
+          });
+        }
+      });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete expense');
+      notify.error(err instanceof Error ? err.message : 'Failed to delete expense');
     }
   };
 
