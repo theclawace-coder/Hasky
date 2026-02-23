@@ -399,7 +399,7 @@ export async function getBookings(filters?: {
         ? '*,machines(*,machine_categories(*)),customers(*),booking_charge_items(*),booking_machines(*,machines(*)),invoices(id,status)'
         : '*,machines(*,machine_categories(*)),customers(*),booking_machines(*,machines(*)),invoices(id,status)',
     )
-    .order('start_date', { ascending: true }) as ReturnType<typeof supabase.from>;
+    .order('start_date', { ascending: true }) as any;
 
   if (filters?.status) {
     query = query.eq('status', filters.status);
