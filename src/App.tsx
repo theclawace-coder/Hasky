@@ -28,6 +28,8 @@ import ContactPage from './pages/landing/ContactPage';
 import OnboardingPage from './pages/onboarding/OnboardingPage';
 import { Card } from './components/ui/Card';
 import { isSupabaseConfigured } from './lib/supabase';
+import { SpeedInsights } from '@vercel/speed-insights/react';
+import { Analytics } from '@vercel/analytics/react';
 
 function ForgotPassword() {
   return (
@@ -70,50 +72,54 @@ VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY`}
   }
 
   return (
-    <Routes>
-      {/* Public marketing pages */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/features" element={<FeaturesPage />} />
-      <Route path="/how-it-works" element={<HowItWorksPage />} />
-      <Route path="/pricing" element={<PricingPage />} />
-      <Route path="/contact" element={<ContactPage />} />
+    <>
+      <Routes>
+        {/* Public marketing pages */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/how-it-works" element={<HowItWorksPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/contact" element={<ContactPage />} />
 
-      {/* Auth */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/public/:documentType/:token" element={<PublicDocumentPage />} />
+        {/* Auth */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/public/:documentType/:token" element={<PublicDocumentPage />} />
 
-      {/* Onboarding: auth-protected but NO layout wrapper */}
-      <Route element={<ProtectedRoute noLayout />}>
-        <Route path="/onboarding" element={<OnboardingPage />} />
-      </Route>
+        {/* Onboarding: auth-protected but NO layout wrapper */}
+        <Route element={<ProtectedRoute noLayout />}>
+          <Route path="/onboarding" element={<OnboardingPage />} />
+        </Route>
 
-      <Route element={<ProtectedRoute />}>
-        <Route path="/home" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/fleet" element={<FleetList />} />
-        <Route path="/fleet/:id" element={<MachineDetail />} />
-        <Route path="/bookings" element={<BookingsList />} />
-        <Route path="/bookings/new" element={<NewBooking />} />
-        <Route path="/bookings/:id" element={<BookingDetail />} />
-        <Route path="/customers" element={<CustomersList />} />
-        <Route path="/customers/:id" element={<CustomerDetail />} />
-        <Route path="/invoices" element={<InvoicesList />} />
-        <Route path="/invoices/:id" element={<InvoiceDetail />} />
-        <Route path="/quotes" element={<QuotesList />} />
-        <Route path="/accounting" element={<AccountingPage />} />
-        <Route path="/settings" element={<Settings />} />
-      </Route>
+        <Route element={<ProtectedRoute />}>
+          <Route path="/home" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/fleet" element={<FleetList />} />
+          <Route path="/fleet/:id" element={<MachineDetail />} />
+          <Route path="/bookings" element={<BookingsList />} />
+          <Route path="/bookings/new" element={<NewBooking />} />
+          <Route path="/bookings/:id" element={<BookingDetail />} />
+          <Route path="/customers" element={<CustomersList />} />
+          <Route path="/customers/:id" element={<CustomerDetail />} />
+          <Route path="/invoices" element={<InvoicesList />} />
+          <Route path="/invoices/:id" element={<InvoiceDetail />} />
+          <Route path="/quotes" element={<QuotesList />} />
+          <Route path="/accounting" element={<AccountingPage />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
 
-      <Route element={<ProtectedRoute adminOnly />}>
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/search" element={<MachineSearch />} />
-        <Route path="/admin/deals" element={<CrossHireDeals />} />
-        <Route path="/admin/companies" element={<CompaniesOverview />} />
-      </Route>
+        <Route element={<ProtectedRoute adminOnly />}>
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/search" element={<MachineSearch />} />
+          <Route path="/admin/deals" element={<CrossHireDeals />} />
+          <Route path="/admin/companies" element={<CompaniesOverview />} />
+        </Route>
 
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <SpeedInsights />
+      <Analytics />
+    </>
   );
 }
