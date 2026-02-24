@@ -10,11 +10,76 @@ import { PaymentModal } from '../../components/payments/PaymentModal';
 import { InvoicePreview } from '../../components/invoices/InvoicePreview';
 import { QuotePreview } from '../../components/quotes/QuotePreview';
 import { getPublicDocument } from '../../services/api';
-import { formatCurrency } from '../../lib/utils';
-import type { DocumentType, Invoice, InvoiceItem, Quote, QuoteItem } from '../../types';
+import { formatCurrency, formatDate } from '../../lib/utils';
+import type { Booking, DocumentType, Invoice, InvoiceItem, Quote, QuoteItem } from '../../types';
 
 function isDocumentType(value: string | undefined): value is DocumentType {
-  return value === 'invoice' || value === 'quote';
+  return value === 'invoice' || value === 'quote' || value === 'booking';
+}
+
+function BookingPaymentSummary({
+  booking,
+  company,
+  customer,
+}: {
+  booking: Booking;
+  company: { name?: string; email?: string } | null;
+  customer: { name?: string } | null;
+}) {
+  const totalAmount = Number(booking.total_amount ?? 0);
+  const isDeposit = booking.payment_plan === 'deposit';
+  const depositDue = Number(booking.deposit_amount ?? 0);
+  const depositPaid = Number(booking.deposit_paid_amount ?? 0);
+  const outstanding = isDeposit
+    ? Math.max(depositDue - depositPaid, 0)
+    : Math.max(totalAmount, 0);
+
+  return (
+    <Card>
+      <div className="space-y-4">
+        {company?.name ? (
+          <p className="text-lg font-bold text-slate-900">{company.name}</p>
+        ) : null}
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-sm font-semibold text-slate-700">
+            {booking.booking_number ?? `Job #${booking.id.slice(0, 8)}`}
+          </p>
+          {customer?.name ? (
+            <p className="mt-1 text-sm text-slate-500">Customer: {customer.name}</p>
+          ) : null}
+          <p className="mt-1 text-sm text-slate-500">
+            {formatDate(booking.start_date)} — {formatDate(booking.end_date)}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 p-4 text-sm">
+          <div className="flex justify-between text-slate-600">
+            <span>Job total</span>
+            <span>{formatCurrency(totalAmount)}</span>
+          </div>
+          {isDeposit && (
+            <>
+              <div className="flex justify-between text-slate-600">
+                <span>Deposit required</span>
+                <span>{formatCurrency(depositDue)}</span>
+              </div>
+              {depositPaid > 0 && (
+                <div className="flex justify-between text-emerald-600">
+                  <span>Already received</span>
+                  <span>- {formatCurrency(depositPaid)}</span>
+                </div>
+              )}
+            </>
+          )}
+          <div className="mt-2 flex justify-between border-t border-slate-200 pt-2 font-semibold text-slate-900">
+            <span>{isDeposit ? 'Deposit outstanding' : 'Amount due'}</span>
+            <span>{formatCurrency(outstanding)}</span>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 export default function PublicDocumentPage() {
@@ -36,7 +101,7 @@ export default function PublicDocumentPage() {
   });
 
   const payload = documentQuery.data;
-  const document = payload?.document as Invoice | Quote | undefined;
+  const document = payload?.document as Invoice | Quote | Booking | undefined;
   const items = payload?.items as Array<InvoiceItem | QuoteItem> | undefined;
   const requestedPayLink = searchParams.get('pay') === '1';
   const paymentOpen = manualPaymentOpen || (
@@ -50,11 +115,31 @@ export default function PublicDocumentPage() {
       return null;
     }
 
+    if (documentType === 'booking') {
+      const bk = document as Booking;
+      const totalAmount = Number(bk.total_amount ?? 0);
+      const isDeposit = bk.payment_plan === 'deposit';
+      const depositDue = Number(bk.deposit_amount ?? 0);
+      const depositPaid = Number(bk.deposit_paid_amount ?? 0);
+      const outstanding = isDeposit
+        ? Math.max(depositDue - depositPaid, 0)
+        : Math.max(totalAmount, 0);
+
+      return {
+        label: isDeposit ? 'Deposit' : 'Payment',
+        number: bk.booking_number ?? `#${bk.id.slice(0, 8)}`,
+        total: totalAmount,
+        paidAmount: depositPaid,
+        outstanding,
+        status: bk.status,
+      };
+    }
+
     const number = documentType === 'invoice'
       ? (document as Invoice).invoice_number
       : (document as Quote).quote_number;
 
-    const total = Number(document.total ?? 0);
+    const total = Number((document as Invoice | Quote).total ?? 0);
     const paidAmount = documentType === 'invoice' ? Number((document as Invoice).paid_amount ?? 0) : 0;
     const outstanding = Math.max(total - paidAmount, 0);
 
@@ -87,7 +172,7 @@ export default function PublicDocumentPage() {
     );
   }
 
-  if (documentQuery.isError || !payload || !document || !items || !summary) {
+  if (documentQuery.isError || !payload || !document || !summary) {
     return (
       <div className="mx-auto max-w-4xl p-4 sm:p-6">
         <Card>
@@ -136,7 +221,13 @@ export default function PublicDocumentPage() {
         </div>
       </Card>
 
-      {documentType === 'invoice' ? (
+      {documentType === 'booking' ? (
+        <BookingPaymentSummary
+          booking={document as Booking}
+          company={payload.company}
+          customer={payload.customer}
+        />
+      ) : documentType === 'invoice' ? (
         <InvoicePreview
           company={payload.company}
           customer={payload.customer}

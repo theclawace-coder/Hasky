@@ -4,6 +4,7 @@ import { Menu, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
 import { ctaBtnClass, ctaBtnStyle } from './ctaStyles';
+import { LogoMark } from '../ui/Logo';
 
 const navLinks = [
   { to: '/features',     label: 'Features'     },
@@ -46,15 +47,7 @@ export function LandingLayout({ children }: { children: React.ReactNode }) {
       >
         <div className="flex h-16 items-center justify-between px-6 lg:px-12">
           <Link to="/" className="flex shrink-0 items-center gap-2.5">
-            <div
-              className="flex size-9 items-center justify-center rounded-xl font-black text-white text-sm animate-glow-pulse"
-              style={{
-                background: 'linear-gradient(135deg, #c084fc 0%, #818cf8 50%, #38bdf8 100%)',
-                boxShadow: '0 0 18px rgba(192,132,252,0.40)',
-              }}
-            >
-              H
-            </div>
+            <LogoMark size={36} className="animate-glow-pulse" style={{ filter: 'drop-shadow(0 0 18px rgba(192,132,252,0.40))' }} />
             <span className="text-lg font-black tracking-tight text-slate-900">Hasky</span>
           </Link>
 
@@ -154,7 +147,7 @@ export function LandingLayout({ children }: { children: React.ReactNode }) {
           <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
             <div className="max-w-xs">
               <div className="mb-3 flex items-center gap-2.5">
-                <div className="flex size-9 items-center justify-center rounded-xl font-black text-white text-sm" style={{ background: 'linear-gradient(135deg, #c084fc, #818cf8, #38bdf8)' }}>H</div>
+                <LogoMark size={36} />
                 <span className="text-lg font-black tracking-tight text-slate-900">Hasky</span>
               </div>
               <p className="text-sm text-slate-500">Australia's only completely free machinery CRM. Fleet management, job scheduling, invoicing, and reports — all in one app.</p>

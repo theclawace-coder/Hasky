@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Database, LoaderCircle } from 'lucide-react';
+import { Database, LoaderCircle, Plus, X } from 'lucide-react';
 import { useForm, useWatch, type Resolver } from 'react-hook-form';
+import { useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MACHINE_STATUSES } from '../../lib/constants';
 import { useMachineModelCatalog } from '../../hooks/useMachineModelCatalog';
 import { useDebounce } from '../../hooks/useDebounce';
 import { POPULAR_MACHINE_BRANDS } from '../../lib/machinePresets';
+import { createMachineCategory } from '../../services/api';
+import { notify } from '../../lib/notify';
 import { Button } from '../ui/Button';
 import { AddressAutocomplete } from '../ui/AddressAutocomplete';
 import { Input } from '../ui/Input';
@@ -106,6 +109,38 @@ export function MachineForm({
     resolver: zodResolver(schema) as Resolver<MachineFormValues>,
     values,
   });
+
+  const queryClient = useQueryClient();
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [customCategoryName, setCustomCategoryName] = useState('');
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [extraCategories, setExtraCategories] = useState<MachineCategory[]>([]);
+  const allCategories = useMemo(
+    () => {
+      const ids = new Set(categories.map((c) => c.id));
+      return [...categories, ...extraCategories.filter((c) => !ids.has(c.id))];
+    },
+    [categories, extraCategories],
+  );
+
+  const handleCreateCategory = async () => {
+    const name = customCategoryName.trim();
+    if (!name) return;
+    setSavingCategory(true);
+    try {
+      const newCategory = await createMachineCategory(name);
+      setExtraCategories((prev) => [...prev, newCategory]);
+      setValue('category_id', newCategory.id, { shouldDirty: true });
+      setCreatingCategory(false);
+      setCustomCategoryName('');
+      void queryClient.invalidateQueries({ queryKey: ['machine_categories'] });
+      notify.success(`Category "${newCategory.name}" created`);
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : 'Failed to create category');
+    } finally {
+      setSavingCategory(false);
+    }
+  };
 
   const [catalogSearch, setCatalogSearch] = useState('');
   const [catalogOpen, setCatalogOpen] = useState(false);
@@ -294,14 +329,56 @@ export function MachineForm({
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Category *</label>
-        <Select {...register('category_id')} error={errors.category_id?.message}>
-          <option value="">Select category</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </Select>
+        {creatingCategory ? (
+          <div className="flex items-center gap-2">
+            <Input
+              value={customCategoryName}
+              onChange={(e) => setCustomCategoryName(e.target.value)}
+              placeholder="e.g. Pump, Welder, Sweeper"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void handleCreateCategory();
+                }
+              }}
+              autoFocus
+            />
+            <Button
+              type="button"
+              size="sm"
+              loading={savingCategory}
+              onClick={() => void handleCreateCategory()}
+            >
+              <Plus className="size-4" />
+            </Button>
+            <button
+              type="button"
+              className="text-slate-400 hover:text-slate-600"
+              onClick={() => { setCreatingCategory(false); setCustomCategoryName(''); }}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        ) : (
+          <>
+            <Select {...register('category_id')} error={errors.category_id?.message}>
+              <option value="">Select category</option>
+              {allCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </Select>
+            <button
+              type="button"
+              className="mt-1.5 flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-800"
+              onClick={() => setCreatingCategory(true)}
+            >
+              <Plus className="size-3" />
+              Add custom category
+            </button>
+          </>
+        )}
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Status</label>

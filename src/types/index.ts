@@ -150,6 +150,7 @@ export interface Booking {
   deposit_paid_amount: number;
   deposit_paid_date: string | null;
   paid_in_full_date: string | null;
+  share_token: string | null;
   notes: string | null;
   is_cross_hire: boolean;
   cross_hire_deal_id: UUID | null;
@@ -364,7 +365,7 @@ export interface AccountingSummary {
   revenueByMonth: { month: string; revenue: number; expenses: number }[];
 }
 
-export type DocumentType = 'quote' | 'invoice';
+export type DocumentType = 'quote' | 'invoice' | 'booking';
 
 export interface DocumentShareResponse {
   document_type: DocumentType;
@@ -383,7 +384,7 @@ export interface PublicDocumentPayload {
   stripe_publishable_key: string | null;
   company: Company | null;
   customer: Customer | null;
-  document: Invoice | Quote;
+  document: Invoice | Quote | Booking;
   items: InvoiceItem[] | QuoteItem[];
   bank_details?: {
     bank_name?: string | null;

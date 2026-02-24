@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { LandingLayout } from '../../components/landing/LandingLayout';
 import { ctaBtnClass, ctaBtnStyle } from '../../components/landing/ctaStyles';
+import { LogoMark } from '../../components/ui/Logo';
 
 // ── Shared App Chrome ────────────────────────────────────────────────────────
 
@@ -517,7 +518,7 @@ function DocumentSharingScreenshot() {
     <AppChrome>
       <div style={{ background: glassBg, padding: '16px' }}>
         <div className="mb-3 text-center">
-          <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-xl text-sm font-black text-white" style={{ background: 'linear-gradient(135deg, #c084fc, #818cf8, #38bdf8)' }}>H</div>
+          <div className="mx-auto mb-2"><LogoMark size={40} /></div>
           <p className="text-xs font-bold text-slate-800">Hasky Earthmoving</p>
           <p className="text-[9px] text-slate-400">has shared an invoice with you</p>
         </div>

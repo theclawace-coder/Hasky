@@ -9,7 +9,6 @@ import { uploadDocument } from '../../services/api';
 import { AddressAutocomplete } from '../ui/AddressAutocomplete';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { Select } from '../ui/Select';
 import type { Customer } from '../../types';
 
 const schema = z.object({
@@ -131,20 +130,8 @@ export function CustomerForm({ defaultValues, onSubmit, loading }: CustomerFormP
           )}
         />
       </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">City</label>
-        <Input {...register('city')} />
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">State</label>
-        <Select {...register('state')}>
-          {AU_STATES.map((state) => (
-            <option key={state} value={state}>
-              {state}
-            </option>
-          ))}
-        </Select>
-      </div>
+      <input type="hidden" {...register('city')} />
+      <input type="hidden" {...register('state')} />
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Drivers Licence Number</label>
         <Input {...register('drivers_licence_number')} placeholder="e.g. 12345678" />

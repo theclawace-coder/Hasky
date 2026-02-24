@@ -239,6 +239,16 @@ export async function getMachineCategories() {
   return (data ?? []) as MachineCategory[];
 }
 
+export async function createMachineCategory(name: string): Promise<MachineCategory> {
+  const { data, error } = await supabase
+    .from('machine_categories')
+    .insert({ name: name.trim() })
+    .select()
+    .single();
+  throwIfError(error);
+  return data as MachineCategory;
+}
+
 export async function searchMachineModelCatalog(search: string, limit = 12) {
   const queryText = search.trim();
   if (queryText.length < 2) {
@@ -1055,6 +1065,28 @@ export async function createDocumentShareLink(
   return data as DocumentShareResponse;
 }
 
+export async function createBookingPaymentLink(bookingId: string): Promise<string> {
+  const { data: booking, error: fetchErr } = await supabase
+    .from('bookings')
+    .select('id, share_token, total_amount, deposit_amount, deposit_paid_amount, payment_plan, paid_in_full_date, status')
+    .eq('id', bookingId)
+    .maybeSingle();
+  throwIfError(fetchErr);
+  if (!booking) throw new Error('Booking not found');
+
+  let token = booking.share_token as string | null;
+  if (!token) {
+    token = createShareToken();
+    const { error: updateErr } = await supabase
+      .from('bookings')
+      .update({ share_token: token })
+      .eq('id', bookingId);
+    throwIfError(updateErr);
+  }
+
+  return `${getAppBaseUrl()}/public/booking/${token}?pay=1`;
+}
+
 export async function sendDocumentEmail(
   documentType: DocumentType,
   documentId: string,
@@ -1136,6 +1168,35 @@ export async function getPublicDocument(documentType: DocumentType, token: strin
 }
 
 async function getPublicDocumentFallback(documentType: DocumentType, token: string): Promise<PublicDocumentPayload> {
+  if (documentType === 'booking') {
+    const { data: doc, error: docErr } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('share_token', token)
+      .maybeSingle();
+
+    if (docErr || !doc) throw new Error('Document not found');
+
+    const [companyRes, customerRes, settingsRes] = await Promise.all([
+      supabase.from('companies').select('*').eq('id', doc.company_id).maybeSingle(),
+      supabase.from('customers').select('*').eq('id', doc.customer_id).maybeSingle(),
+      supabase.from('company_settings').select('bank_name, bank_bsb, bank_account_number, bank_account_name').eq('company_id', doc.company_id).maybeSingle(),
+    ]);
+
+    return {
+      document_type: 'booking',
+      share_url: `${getAppBaseUrl()}/public/booking/${token}`,
+      payment_url: null,
+      can_pay_online: false,
+      stripe_publishable_key: null,
+      company: (companyRes.data as Company) ?? null,
+      customer: (customerRes.data as Customer) ?? null,
+      document: doc as Booking,
+      items: [],
+      bank_details: settingsRes?.data ?? null,
+    };
+  }
+
   const table = documentType === 'invoice' ? 'invoices' : 'quotes';
   const itemsTable = documentType === 'invoice' ? 'invoice_items' : 'quote_items';
   const itemFK = documentType === 'invoice' ? 'invoice_id' : 'quote_id';

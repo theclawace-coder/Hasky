@@ -81,7 +81,59 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    // Public token flow for quote/invoice links.
+    // Public token flow for quote/invoice/booking links.
+    if (shareToken && documentType === 'booking') {
+      const { data: booking, error } = await adminClient
+        .from('bookings')
+        .select('id, company_id, booking_number, payment_plan, deposit_amount, deposit_paid_amount, total_amount, paid_in_full_date, status, share_token')
+        .eq('share_token', shareToken)
+        .maybeSingle();
+
+      if (error || !booking) {
+        return jsonResponse(404, { error: 'Document not found' });
+      }
+
+      if (!['quote', 'confirmed'].includes(booking.status) || booking.paid_in_full_date) {
+        return jsonResponse(400, { error: 'This booking is not payable' });
+      }
+
+      const isDeposit = booking.payment_plan === 'deposit';
+      const depositDue = Number(booking.deposit_amount ?? 0);
+      const depositPaid = Number(booking.deposit_paid_amount ?? 0);
+      const totalAmount = Number(booking.total_amount ?? 0);
+      const chargeAmount = isDeposit
+        ? Math.max(depositDue - depositPaid, 0)
+        : Math.max(totalAmount, 0);
+
+      const amountCents = Math.round(chargeAmount * 100);
+      if (!Number.isFinite(amountCents) || amountCents <= 0) {
+        return jsonResponse(400, { error: 'No outstanding balance on this booking' });
+      }
+
+      const stripeConfig = await getStripeCredentialsForCompany(adminClient, booking.company_id);
+      const stripe = new Stripe(stripeConfig.secretKey, { apiVersion: '2024-06-20' });
+
+      const label = booking.booking_number ?? `Job #${booking.id.slice(0, 8)}`;
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amountCents,
+        currency,
+        metadata: {
+          document_type: 'booking',
+          company_id: booking.company_id,
+          booking_id: booking.id,
+          share_token: shareToken,
+          payment_plan: booking.payment_plan ?? '',
+        },
+        description: `Payment for ${label}`,
+        automatic_payment_methods: { enabled: true },
+      });
+
+      return jsonResponse(200, {
+        clientSecret: paymentIntent.client_secret,
+        publishableKey: stripeConfig.publishableKey,
+      });
+    }
+
     if (shareToken && documentType && ['quote', 'invoice'].includes(documentType)) {
       const table = documentType === 'quote' ? 'quotes' : 'invoices';
       const numberField = documentType === 'quote' ? 'quote_number' : 'invoice_number';

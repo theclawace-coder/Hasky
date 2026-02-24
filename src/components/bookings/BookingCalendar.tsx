@@ -38,42 +38,74 @@ export function BookingCalendar({
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="space-y-3 p-3 md:hidden">
-        {days.map((day) => {
-          const dayBookings = bookings.filter((item) =>
-            isWithinInterval(day, {
-              start: new Date(item.start_date),
-              end: new Date(item.end_date ?? item.start_date),
-            }),
-          );
+        {machines.map((machine) => {
+          const machineBookings = bookings
+            .filter((item) => {
+              const bmIds = ((item as Booking & { booking_machines?: BookingMachine[] }).booking_machines ?? [])
+                .map((bm) => bm.machine_id);
+              const spansMachine = item.machine_id === machine.id || bmIds.includes(machine.id);
+              if (!spansMachine) return false;
+              return days.some((day) =>
+                isWithinInterval(day, {
+                  start: new Date(item.start_date),
+                  end: new Date(item.end_date ?? item.start_date),
+                }),
+              );
+            })
+            .filter((b, i, arr) => arr.findIndex((x) => x.id === b.id) === i);
+
           return (
-            <div key={day.toISOString()} className="rounded-lg border border-slate-200 bg-white p-3">
-              <p className="text-sm font-semibold text-slate-900">{format(day, 'EEE dd MMM')}</p>
-              {dayBookings.length === 0 ? (
-                <p className="mt-1 text-xs text-slate-500">No bookings</p>
+            <div key={machine.id} className="rounded-lg border border-slate-200 bg-white">
+              <div
+                className="flex items-center justify-between border-b border-slate-100 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-900">{machine.name}</p>
+                  {machine.machine_categories?.name && (
+                    <p className="text-[11px] text-slate-500">{machine.machine_categories.name}</p>
+                  )}
+                </div>
+                {machineBookings.length > 0 && (
+                  <span className="ml-2 shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-medium text-violet-700">
+                    {machineBookings.length}
+                  </span>
+                )}
+              </div>
+
+              {machineBookings.length === 0 ? (
+                <button
+                  type="button"
+                  className="w-full px-3 py-3 text-left"
+                  onClick={() => onCellClick(machine, days[0])}
+                >
+                  <p className="text-xs text-slate-400">No bookings this period</p>
+                </button>
               ) : (
-                <div className="mt-2 space-y-2">
-                  {dayBookings.map((booking) => {
-                    const bookingMachines = ((booking as Booking & { booking_machines?: BookingMachine[] }).booking_machines ?? [])
-                      .map((bm) => machineNameById.get(bm.machine_id))
-                      .filter((name): name is string => Boolean(name));
-                    const machineNames = bookingMachines.length
-                      ? bookingMachines.join(', ')
-                      : booking.machines?.name ?? '—';
-                    return (
-                      <button
-                        key={booking.id}
-                        type="button"
-                        className="w-full rounded-md border border-blue-100 bg-blue-50 p-2 text-left"
-                        onClick={() => onBookingClick(booking)}
-                      >
-                        <p className="text-xs font-semibold text-slate-800">{booking.customers?.name ?? '—'}</p>
-                        <p className="mt-0.5 break-words text-[11px] text-slate-600">{machineNames}</p>
-                        <div className="mt-1">
+                <div className="divide-y divide-slate-100">
+                  {machineBookings.map((booking) => (
+                    <button
+                      key={booking.id}
+                      type="button"
+                      className="flex w-full items-start gap-2 px-3 py-2.5 text-left transition active:bg-slate-50"
+                      onClick={() => onBookingClick(booking)}
+                    >
+                      <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-blue-400" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-xs font-semibold text-slate-800">
+                            {booking.customers?.name ?? '—'}
+                          </p>
                           <StatusBadge status={booking.status} />
                         </div>
-                      </button>
-                    );
-                  })}
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          {format(new Date(booking.start_date), 'd MMM')}
+                          {booking.end_date && booking.end_date !== booking.start_date
+                            ? ` – ${format(new Date(booking.end_date), 'd MMM')}`
+                            : ''}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

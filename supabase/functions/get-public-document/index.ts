@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2?target=deno';
 
-type DocumentType = 'quote' | 'invoice';
+type DocumentType = 'quote' | 'invoice' | 'booking';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,8 +71,8 @@ Deno.serve(async (req) => {
     const documentType = body.document_type;
     const token = String(body.token ?? '').trim();
 
-    if (!documentType || !['quote', 'invoice'].includes(documentType)) {
-      return jsonResponse(400, { error: 'document_type must be quote or invoice' });
+    if (!documentType || !['quote', 'invoice', 'booking'].includes(documentType)) {
+      return jsonResponse(400, { error: 'document_type must be quote, invoice, or booking' });
     }
     if (!token) {
       return jsonResponse(400, { error: 'token is required' });
@@ -84,6 +84,58 @@ Deno.serve(async (req) => {
       return jsonResponse(500, { error: 'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required' });
     }
     const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+    if (documentType === 'booking') {
+      const { data: booking, error: bookingError } = await adminClient
+        .from('bookings')
+        .select('*')
+        .eq('share_token', token)
+        .maybeSingle();
+
+      if (bookingError || !booking) {
+        return jsonResponse(404, { error: 'Document not found' });
+      }
+
+      const [companyRes, customerRes, settingsRes] = await Promise.all([
+        adminClient.from('companies').select('*').eq('id', booking.company_id).maybeSingle(),
+        adminClient.from('customers').select('*').eq('id', booking.customer_id).maybeSingle(),
+        adminClient.from('company_settings').select('bank_name, bank_bsb, bank_account_number, bank_account_name').eq('company_id', booking.company_id).maybeSingle(),
+      ]);
+
+      if (companyRes.error || customerRes.error) {
+        return jsonResponse(500, {
+          error: companyRes.error?.message ?? customerRes.error?.message,
+        });
+      }
+
+      const stripeConfig = await getStripePublicConfig(adminClient, booking.company_id);
+      const totalAmount = Number(booking.total_amount ?? 0);
+      const depositDue = Number(booking.deposit_amount ?? 0);
+      const depositPaid = Number(booking.deposit_paid_amount ?? 0);
+      const isDeposit = booking.payment_plan === 'deposit';
+      const outstanding = isDeposit
+        ? Math.max(depositDue - depositPaid, 0)
+        : Math.max(totalAmount, 0);
+      const canPayOnline =
+        stripeConfig.configured &&
+        outstanding > 0 &&
+        !booking.paid_in_full_date &&
+        ['quote', 'confirmed'].includes(booking.status);
+      const shareUrl = `${getAppBaseUrl()}/public/booking/${token}`;
+
+      return jsonResponse(200, {
+        document_type: 'booking',
+        share_url: shareUrl,
+        payment_url: canPayOnline ? `${shareUrl}?pay=1` : null,
+        can_pay_online: canPayOnline,
+        stripe_publishable_key: stripeConfig.publishableKey,
+        company: companyRes.data,
+        customer: customerRes.data,
+        document: booking,
+        items: [],
+        bank_details: settingsRes?.data ?? null,
+      });
+    }
 
     if (documentType === 'invoice') {
       const { data: invoice, error: invoiceError } = await adminClient

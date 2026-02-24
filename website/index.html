@@ -66,15 +66,13 @@
     .nav-logo-mark {
       width: 36px;
       height: 36px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #F97316, #FBBF24);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 900;
-      font-size: 16px;
-      color: white;
-      box-shadow: 0 4px 16px rgba(249,115,22,0.40);
+      flex-shrink: 0;
+      filter: drop-shadow(0 4px 16px rgba(192,132,252,0.40));
+    }
+    .nav-logo-mark svg {
+      display: block;
+      width: 36px;
+      height: 36px;
     }
 
     .nav-logo-text {
@@ -334,14 +332,12 @@
     .mockup-logo-mark {
       width: 32px;
       height: 32px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #F97316, #FBBF24);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 900;
-      color: #000;
+      flex-shrink: 0;
+    }
+    .mockup-logo-mark svg {
+      display: block;
+      width: 32px;
+      height: 32px;
     }
 
     .mockup-logo-text {
@@ -899,14 +895,12 @@
     .footer-logo-mark {
       width: 32px;
       height: 32px;
-      border-radius: 9px;
-      background: linear-gradient(135deg, #F97316, #FBBF24);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      font-weight: 900;
-      color: #000;
+      flex-shrink: 0;
+    }
+    .footer-logo-mark svg {
+      display: block;
+      width: 32px;
+      height: 32px;
     }
 
     .footer-brand { font-size: 16px; font-weight: 800; color: #fff; }
@@ -983,7 +977,7 @@
 <!-- ══ NAVIGATION ══ -->
 <nav>
   <a href="#" class="nav-logo">
-    <div class="nav-logo-mark">H</div>
+    <div class="nav-logo-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" fill="none"><defs><linearGradient id="hk_nav" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#c084fc"/><stop offset="0.5" stop-color="#818cf8"/><stop offset="1" stop-color="#38bdf8"/></linearGradient></defs><rect width="36" height="36" rx="9" fill="url(#hk_nav)"/><rect x="1" y="1" width="34" height="14" rx="8" fill="white" fill-opacity="0.08"/><circle cx="4.5" cy="4.5" r="1.5" stroke="white" stroke-width="0.8" fill="none" stroke-opacity="0.45"/><circle cx="31.5" cy="4.5" r="1.5" stroke="white" stroke-width="0.8" fill="none" stroke-opacity="0.45"/><circle cx="4.5" cy="31.5" r="1.5" stroke="white" stroke-width="0.8" fill="none" stroke-opacity="0.45"/><circle cx="31.5" cy="31.5" r="1.5" stroke="white" stroke-width="0.8" fill="none" stroke-opacity="0.45"/><rect x="7" y="8" width="6" height="20" rx="1.5" fill="white"/><rect x="23" y="8" width="6" height="20" rx="1.5" fill="white"/><rect x="13" y="15.5" width="3.5" height="5" fill="white"/><rect x="19.5" y="15.5" width="3.5" height="5" fill="white"/><circle cx="18" cy="18" r="3.2" fill="url(#hk_nav)"/><circle cx="18" cy="18" r="3.2" stroke="white" stroke-width="1.8" fill="none"/></svg></div>
     <span class="nav-logo-text">Hasky</span>
   </a>
   <ul class="nav-links">
@@ -1051,7 +1045,7 @@
         <!-- Sidebar -->
         <div class="mockup-sidebar">
           <div class="mockup-logo">
-            <div class="mockup-logo-mark">H</div>
+            <div class="mockup-logo-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" fill="none"><defs><linearGradient id="hk_mock" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#c084fc"/><stop offset="0.5" stop-color="#818cf8"/><stop offset="1" stop-color="#38bdf8"/></linearGradient></defs><rect width="36" height="36" rx="9" fill="url(#hk_mock)"/><rect x="1" y="1" width="34" height="14" rx="8" fill="white" fill-opacity="0.08"/><circle cx="4.5" cy="4.5" r="1.5" stroke="white" stroke-width="0.8" fill="none" stroke-opacity="0.45"/><circle cx="31.5" cy="4.5" r="1.5" stroke="white" stroke-width="0.8" fill="none" stroke-opacity="0.45"/><circle cx="4.5" cy="31.5" r="1.5" stroke="white" stroke-width="0.8" fill="none" stroke-opacity="0.45"/><circle cx="31.5" cy="31.5" r="1.5" stroke="white" stroke-width="0.8" fill="none" stroke-opacity="0.45"/><rect x="7" y="8" width="6" height="20" rx="1.5" fill="white"/><rect x="23" y="8" width="6" height="20" rx="1.5" fill="white"/><rect x="13" y="15.5" width="3.5" height="5" fill="white"/><rect x="19.5" y="15.5" width="3.5" height="5" fill="white"/><circle cx="18" cy="18" r="3.2" fill="url(#hk_mock)"/><circle cx="18" cy="18" r="3.2" stroke="white" stroke-width="1.8" fill="none"/></svg></div>
             <div class="mockup-logo-text">Hasky</div>
           </div>
           <div class="mockup-nav-item active">
@@ -1695,7 +1689,7 @@
 <!-- ══ FOOTER ══ -->
 <footer>
   <a href="#" class="footer-logo">
-    <div class="footer-logo-mark">H</div>
+    <div class="footer-logo-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" fill="none"><defs><linearGradient id="hk_foot" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#c084fc"/><stop offset="0.5" stop-color="#818cf8"/><stop offset="1" stop-color="#38bdf8"/></linearGradient></defs><rect width="36" height="36" rx="9" fill="url(#hk_foot)"/><rect x="1" y="1" width="34" height="14" rx="8" fill="white" fill-opacity="0.08"/><circle cx="4.5" cy="4.5" r="1.5" stroke="white" stroke-width="0.8" fill="none" stroke-opacity="0.45"/><circle cx="31.5" cy="4.5" r="1.5" stroke="white" stroke-width="0.8" fill="none" stroke-opacity="0.45"/><circle cx="4.5" cy="31.5" r="1.5" stroke="white" stroke-width="0.8" fill="none" stroke-opacity="0.45"/><circle cx="31.5" cy="31.5" r="1.5" stroke="white" stroke-width="0.8" fill="none" stroke-opacity="0.45"/><rect x="7" y="8" width="6" height="20" rx="1.5" fill="white"/><rect x="23" y="8" width="6" height="20" rx="1.5" fill="white"/><rect x="13" y="15.5" width="3.5" height="5" fill="white"/><rect x="19.5" y="15.5" width="3.5" height="5" fill="white"/><circle cx="18" cy="18" r="3.2" fill="url(#hk_foot)"/><circle cx="18" cy="18" r="3.2" stroke="white" stroke-width="1.8" fill="none"/></svg></div>
     <div>
       <div class="footer-brand">Hasky</div>
       <div class="footer-tagline">hasky.com.au</div>

@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { LandingLayout } from '../../components/landing/LandingLayout';
 import { ctaBtnClass, ctaBtnStyle } from '../../components/landing/ctaStyles';
 import { useAuth } from '../../hooks/useAuth';
+import { LogoMark } from '../../components/ui/Logo';
 
 const fadeUp = {
   hidden:  { opacity: 0, y: 20 },
@@ -44,7 +45,7 @@ function AppSidebar({ active }: { active: string }) {
   return (
     <div className="flex w-44 shrink-0 flex-col p-3" style={{ background: 'rgba(8,6,20,0.88)', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="mb-4 flex items-center gap-2 px-2 py-1.5">
-        <div className="flex size-8 items-center justify-center rounded-xl text-xs font-black text-white" style={{ background: 'linear-gradient(135deg, #c084fc, #818cf8, #38bdf8)' }}>H</div>
+        <LogoMark size={32} />
         <span className="text-sm font-bold text-white">Hasky</span>
       </div>
       <div className="space-y-0.5">
@@ -210,7 +211,7 @@ function InvoicePDFScreenshot() {
           <div className="mb-4 flex items-start justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <div className="flex size-6 items-center justify-center rounded-lg text-[8px] font-black text-white" style={{ background: 'linear-gradient(135deg, #c084fc, #818cf8, #38bdf8)' }}>H</div>
+                <LogoMark size={24} />
                 <span className="text-[11px] font-bold text-slate-800">Hasky Earthmoving</span>
               </div>
               <p className="text-[8px] text-slate-400">ABN 12 345 678 901</p>
@@ -788,7 +789,7 @@ export default function LandingPage() {
                     <th className="px-5 py-4 text-left text-sm font-bold text-slate-700">Feature</th>
                     <th className="px-4 py-4 text-center">
                       <div className="inline-flex items-center gap-1.5">
-                        <div className="flex size-6 items-center justify-center rounded-lg text-[8px] font-black text-white" style={{ background: 'linear-gradient(135deg, #c084fc, #818cf8, #38bdf8)' }}>H</div>
+                        <LogoMark size={24} />
                         <span className="text-sm font-black text-slate-900">Hasky</span>
                       </div>
                     </th>

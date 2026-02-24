@@ -142,7 +142,7 @@ interface PaymentModalProps {
   invoiceId?: string;
   bookingId?: string;
   shareToken?: string;
-  documentType?: DocumentType | 'booking';
+  documentType?: DocumentType;
   documentNumber: string;
   amount: number;
   publishableKey?: string | null;

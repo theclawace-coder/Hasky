@@ -1,5 +1,5 @@
-﻿import { useMemo, useState } from 'react';
-import { addDays } from 'date-fns';
+import { useMemo, useState } from 'react';
+import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
 import { Input } from '../ui/Input';
@@ -44,13 +44,29 @@ export function InvoiceForm({ customers, bookings, defaultValues, defaultItems, 
     }
 
     setCustomerId(booking.customer_id);
-    setItems([
-      {
-        description: `Hire charge: ${booking.machines?.name ?? ''}`,
-        quantity: 1,
-        unit_price: Number(booking.total_amount ?? booking.rate_amount),
-      },
-    ]);
+
+    const days = differenceInCalendarDays(parseISO(booking.end_date), parseISO(booking.start_date)) + 1;
+    const dateRange = `(${format(parseISO(booking.start_date), 'dd/MM/yy')} to ${format(parseISO(booking.end_date), 'dd/MM/yy')})`;
+    const dayLabel = days === 1 ? 'day' : 'days';
+
+    const bms = booking.booking_machines ?? [];
+    if (bms.length > 0) {
+      setItems(
+        bms.map((bm) => ({
+          description: `Hire of ${bm.machines?.name ?? 'equipment'} – ${days} ${dayLabel} ${dateRange}`,
+          quantity: days,
+          unit_price: Number(bm.rate_amount),
+        })),
+      );
+    } else {
+      setItems([
+        {
+          description: `Hire of ${booking.machines?.name ?? 'equipment'} – ${days} ${dayLabel} ${dateRange}`,
+          quantity: days,
+          unit_price: Number(booking.rate_amount),
+        },
+      ]);
+    }
   };
 
   const submit = () => {

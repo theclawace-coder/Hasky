@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { notify } from '../../lib/notify';
-import { AlertTriangle, CheckCircle2, CreditCard, DollarSign, Pencil, Plus, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CreditCard, DollarSign, Link2, Pencil, Plus, XCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useBooking, useBookings } from '../../hooks/useBookings';
 import { useCustomers } from '../../hooks/useCustomers';
 import { useMachines } from '../../hooks/useMachines';
 import { useExpenses } from '../../hooks/useAccounting';
-import { getInvoicesByBookingId, getStripeConfigStatus } from '../../services/api';
+import { createBookingPaymentLink, getInvoicesByBookingId, getStripeConfigStatus } from '../../services/api';
 import { BookingStatusBar } from '../../components/bookings/BookingStatusBar';
 import { BookingForm, type BookingFormValues } from '../../components/bookings/BookingForm';
 import { PaymentModal } from '../../components/payments/PaymentModal';
@@ -54,6 +54,7 @@ export default function BookingDetail() {
   const [partialPaymentOpen, setPartialPaymentOpen] = useState(false);
   const [partialPaymentAmount, setPartialPaymentAmount] = useState('');
   const [costForm, setCostForm] = useState({ category: 'Fuel' as ExpenseCategory, description: '', amount: '' });
+  const [copyingPaymentLink, setCopyingPaymentLink] = useState(false);
 
   const { expensesQuery, upsertMutation: logCostMutation } = useExpenses({ bookingId: id ?? '' });
 
@@ -158,6 +159,20 @@ export default function BookingDetail() {
       void bookingQuery.refetch();
     } catch (error) {
       notify.error(error instanceof Error ? error.message : 'Failed to mark payment');
+    }
+  };
+
+  const handleCopyPaymentLink = async () => {
+    if (!id) return;
+    setCopyingPaymentLink(true);
+    try {
+      const url = await createBookingPaymentLink(id);
+      await navigator.clipboard.writeText(url);
+      notify.success('Payment link copied to clipboard');
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : 'Failed to generate payment link');
+    } finally {
+      setCopyingPaymentLink(false);
     }
   };
 
@@ -350,10 +365,20 @@ export default function BookingDetail() {
                       </Button>
                     )}
                     {stripeConfigured ? (
-                      <Button variant="secondary" onClick={() => setStripePaymentOpen(true)}>
-                        <CreditCard className="size-4" />
-                        Collect via Stripe — {formatCurrency(booking.payment_plan === 'deposit' ? depositOutstanding : totalAmount)}
-                      </Button>
+                      <>
+                        <Button variant="secondary" onClick={() => setStripePaymentOpen(true)}>
+                          <CreditCard className="size-4" />
+                          Collect via Stripe — {formatCurrency(booking.payment_plan === 'deposit' ? depositOutstanding : totalAmount)}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          onClick={() => void handleCopyPaymentLink()}
+                          loading={copyingPaymentLink}
+                        >
+                          <Link2 className="size-4" />
+                          Copy Payment Link
+                        </Button>
+                      </>
                     ) : null}
                   </div>
                 </div>

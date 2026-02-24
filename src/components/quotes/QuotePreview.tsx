@@ -27,9 +27,6 @@ export function QuotePreview({ company, customer, quote, items, bankDetails }: Q
           <p className="mt-2 text-sm font-semibold text-slate-800">{company?.name}</p>
           {company?.abn ? <p className="text-sm text-slate-600">ABN: {company.abn}</p> : null}
           {company?.address ? <p className="text-sm text-slate-600">{company.address}</p> : null}
-          {(company?.city || company?.state) ? (
-            <p className="text-sm text-slate-600">{[company?.city, company?.state].filter(Boolean).join(', ')}</p>
-          ) : null}
           {company?.phone ? <p className="text-sm text-slate-600">Ph: {company.phone}</p> : null}
           {company?.email ? <p className="text-sm text-slate-600">{company.email}</p> : null}
         </div>
@@ -57,9 +54,6 @@ export function QuotePreview({ company, customer, quote, items, bankDetails }: Q
           <p className="text-sm text-slate-600">ABN: {(customer as Customer & { abn?: string | null }).abn}</p>
         ) : null}
         {customer?.address ? <p className="text-sm text-slate-600">{customer.address}</p> : null}
-        {(customer?.city || customer?.state) ? (
-          <p className="text-sm text-slate-600">{[customer?.city, customer?.state].filter(Boolean).join(', ')}</p>
-        ) : null}
         {customer?.email ? <p className="text-sm text-slate-600">{customer.email}</p> : null}
         {customer?.phone ? <p className="text-sm text-slate-600">Ph: {customer.phone}</p> : null}
       </div>
